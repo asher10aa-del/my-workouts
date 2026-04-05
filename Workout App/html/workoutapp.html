@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- הגדרות מיוחדות לאייפון -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="האימונים שלי">
+    
+    <!-- מנגנון ציור הלוגו בפורמט PNG שמותאם במיוחד לאייפון (משקולת לבנה על שחור) -->
+    <script>
+        (function() {
+            var canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 256;
+            var ctx = canvas.getContext('2d');
+            
+            // רקע שחור עמוק
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, 256, 256);
+            
+            // משקולת לבנה וחלקה
+            ctx.fillStyle = '#ffffff';
+            
+            // פונקציית עזר לציור מלבן מעוגל שנתמכת בכל המכשירים
+            function fillRoundRect(x, y, w, h, r) {
+                ctx.beginPath();
+                ctx.moveTo(x + r, y);
+                ctx.lineTo(x + w - r, y);
+                ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+                ctx.lineTo(x + w, y + h - r);
+                ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+                ctx.lineTo(x + r, y + h);
+                ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+                ctx.lineTo(x, y + r);
+                ctx.quadraticCurveTo(x, y, x + r, y);
+                ctx.fill();
+            }
+
+            // ציור חלקי המשקולת
+            fillRoundRect(98, 113, 60, 30, 5);   // ידית אמצעית
+            fillRoundRect(68, 68, 30, 120, 10);  // משקולת פנימית שמאל
+            fillRoundRect(158, 68, 30, 120, 10); // משקולת פנימית ימין
+            fillRoundRect(48, 88, 20, 80, 8);    // משקולת חיצונית שמאל
+            fillRoundRect(188, 88, 20, 80, 8);   // משקולת חיצונית ימין
+
+            var dataURL = canvas.toDataURL('image/png');
+
+            // הזרקת הלוגו ישירות להגדרות הדפדפן לפני טעינת המסך
+            var appleIcon = document.createElement('link');
+            appleIcon.rel = 'apple-touch-icon';
+            appleIcon.href = dataURL;
+            document.head.appendChild(appleIcon);
+
+            var standardIcon = document.createElement('link');
+            standardIcon.rel = 'icon';
+            standardIcon.type = 'image/png';
+            standardIcon.href = dataURL;
+            document.head.appendChild(standardIcon);
+        })();
+    </script>
+    
+    <title>האימונים שלי</title>
+
+<link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#050505">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        body { 
+            background-color: #050505;
+            background-image: 
+                radial-gradient(circle at top right, #1e3a8a30 0%, #050505 50%), 
+                radial-gradient(circle at bottom left, #88133720 0%, #050505 50%);
+            color: white; 
+            -webkit-tap-highlight-color: transparent; 
+            font-family: system-ui, -apple-system, sans-serif;
+            overflow-x: hidden;
+            margin: 0;
+            min-height: 100vh;
+        }
+        input, select, textarea { font-size: 16px !important; }
+
+        @keyframes slideUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .animate-slideUp { animation: slideUp 0.3s ease-out forwards; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        const Icon = ({ name, size = 24, className = "" }) => {
+            const icons = {
+                dumbbell: <><path d="m14.4 14.4-4.8-4.8"/><path d="M18.66 21.48a2 2 0 1 1-2.83-2.83l-1.77 1.77a2 2 0 1 1-2.83-2.83l6.36-6.36a2 2 0 1 1 2.83 2.83l-1.77 1.77a2 2 0 1 1 2.83 2.83z"/><path d="m21.5 21.5-1.4-1.4"/><path d="m3.9 3.9-1.4-1.4"/><path d="M6.4 2.76a2 2 0 1 0-2.83 2.83l1.77-1.77a2 2 0 1 0 2.83 2.83l6.36 6.36a2 2 0 1 0 2.83-2.83l-1.77 1.77a2 2 0 1 0 2.83-2.83z"/></>,
+                zap: <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>,
+                footprints: <><path d="M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z"/><path d="M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z"/><path d="M16 17h4"/><path d="M4 13h4"/></>,
+                target: <><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></>,
+                arrowRight: <><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></>,
+                arrowLeft: <><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></>,
+                calendar: <><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>,
+                check: <polyline points="20 6 9 17 4 12"/>,
+                x: <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>,
+                chevronRight: <polyline points="9 18 15 12 9 6"/>,
+                chevronLeft: <polyline points="15 18 9 12 15 6"/>,
+                plus: <><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>,
+                trash2: <><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></>,
+                edit2: <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>,
+                clock: <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>,
+                settings: <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2 2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></>,
+                arrowUp: <><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></>,
+                arrowDown: <><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></>
+            };
+            return (
+                <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    {icons[name] || null}
+                </svg>
+            );
+        };
+
+        const MOTIVATIONS = [
+          "אין קיצורי דרך — רק עבודה קשה 💪",
+          "כל אימון מקרב אותך למטרה שלך",
+          "הגוף שלך יכול יותר ממה שאתה חושב",
+          "תתמיד היום, תודה לעצמך מחר",
+          "הכאב של היום הוא הכוח של מחר"
+        ];
+
+        const DEFAULT_CATEGORIES = [
+          { id: 'c1', name: "Upper A", hex: "#3b82f6", icon: "dumbbell", exercises: [
+            { id: 'h1', name: "דחיקת חזה עליון (סמיט/חופשי)", sets: 2, reps: 10, weight: "22.5 / 17.5" },
+            { id: 'g1', name: "חתירה במכונה (אדומה)", sets: 2, reps: 10, weight: "22.5 / 37.5" },
+            { id: 'k1', name: "לחיצת כתפיים בישיבה (משקולות)", sets: 2, reps: 10, weight: "12.5 / 27" },
+            { id: 'g3', name: "פולי עליון אחיזה רחבה", sets: 2, reps: 10, weight: "55 / 47.5" },
+            { id: 'y1', name: "כפיפת מרפקים בשיפוע (קדמית)", sets: 3, reps: 10, weight: "10" },
+            { id: 'a1', name: "פשיטת מרפק בכבל (אחורית)", sets: 2, reps: 12, weight: "20" },
+            { id: 'k2', name: "הרחקת כתפיים לצדדים", sets: 3, reps: 12, weight: "7.5 / 6" },
+          ]},
+          { id: 'c2', name: "Upper B", hex: "#06b6d4", icon: "zap", exercises: [
+            { id: 'h3', name: "לחיצת חזה משקולות חופשיות", sets: 2, reps: 10, weight: "22.5" },
+            { id: 'h2', name: "פרפר במכונה / כבל", sets: 2, reps: 12, weight: "36 / 12.5" },
+            { id: 'g2', name: "רחב גבי במכונה", sets: 2, reps: 10, weight: "30" },
+            { id: 'g4', name: "פולי תחתון אחיזה צרה", sets: 2, reps: 10, weight: "40 / 32.5" },
+            { id: 'k3', name: "כתף אחורית מכונה / כבל", sets: 3, reps: 12, weight: "12.5 / 18 / 23" },
+            { id: 'k4', name: "טרפזים עם משקולות", sets: 2, reps: 12, weight: "20" },
+            { id: 'g6', name: "גב תחתון", sets: 2, reps: 15, weight: "10" },
+            { id: 'y2', name: "כפיפת מרפק בשיפוע (קדמית 7קג)", sets: 2, reps: 10, weight: "7" },
+            { id: 'a2', name: "פשיטת מרפק מעל הראש (כבל/W)", sets: 2, reps: 12, weight: "15" },
+          ]},
+          { id: 'c3', name: "Lower B", hex: "#10b981", icon: "footprints", exercises: [
+            { id: 'r1', name: "הרמת תאומים (ישיבה)", sets: 2, reps: 20, weight: "50 / 20" },
+            { id: 'r2', name: "כפיפת ברך במכונה (שכיבה)", sets: 2, reps: 10, weight: "41 / 32 / 55" },
+            { id: 'r3', name: "לחיצת רגליים / סקוואט סמיט", sets: 3, reps: 10, weight: "73 / 13.75 / 12.5" },
+            { id: 'r4', name: "דדליפט רומני (סמיט)", sets: 2, reps: 10, weight: "20 / 10" },
+            { id: 'r5', name: "מקרביים / מרחיקים", sets: 3, reps: 12, weight: "41 / 55 / 32" },
+            { id: 'r6', name: "פשיטת ברך במכונה", sets: 2, reps: 12, weight: "68 / 41" },
+            { id: 'r8', name: "היפ טראסט", sets: 2, reps: 10, weight: "-" },
+          ]},
+          { id: 'c4', name: "Cardio & Abs", hex: "#f43f5e", icon: "target", exercises: [
+            { id: 'r7', name: "סקוואט בולגרי / הליכה", sets: 2, reps: 10, weight: "-" },
+            { id: 'b1', name: "כפיפות בטן בשיפוע / מכונה", sets: 3, reps: 15, weight: "10 / 36" },
+            { id: 'b2', name: "הרמות רגליים", sets: 3, reps: 15, weight: "-" },
+          ]}
+        ];
+
+        const DEFAULT_SCHEDULE = { 0: 'c1', 1: 'c3', 2: null, 3: 'c2', 4: 'c3', 5: null, 6: 'c4' };
+
+        const ExerciseEditModal = ({ exercise, onSave, onClose }) => {
+            const [localData, setLocalData] = useState({ ...exercise });
+            const handleChange = (field, value) => setLocalData(prev => ({ ...prev, [field]: value }));
+
+            return (
+                <div className="fixed inset-0 bg-black/95 z-[200] flex items-center justify-center p-6 animate-[fadeIn_0.2s_ease-out]">
+                    <div className="bg-gray-900 border border-white/10 p-6 rounded-3xl w-full max-w-sm shadow-2xl relative">
+                        <button onClick={onClose} className="absolute top-4 left-4 text-gray-400 p-2"><Icon name="x" size={20}/></button>
+                        <h3 className="text-xl font-black mb-6 text-white text-center">עריכת תרגיל</h3>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-xs text-gray-400 font-bold mb-1 block">שם התרגיל</label>
+                                <input className="bg-black/80 w-full p-4 rounded-xl border border-blue-500/50 outline-none text-white font-bold text-right" value={localData.name} onChange={(e) => handleChange('name', e.target.value)} />
+                            </div>
+                            <div className="grid grid-cols-3 gap-3">
+                                <div>
+                                    <label className="text-xs text-gray-400 font-bold mb-1 block text-center">סטים</label>
+                                    <input type="number" className="bg-black/80 w-full p-4 rounded-xl border border-white/10 text-center font-black text-white" value={localData.sets} onChange={(e) => handleChange('sets', e.target.value)} />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-gray-400 font-bold mb-1 block text-center">חזרות</label>
+                                    <input type="number" className="bg-black/80 w-full p-4 rounded-xl border border-white/10 text-center font-black text-white" value={localData.reps} onChange={(e) => handleChange('reps', e.target.value)} />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-gray-400 font-bold mb-1 block text-center">משקל</label>
+                                    <input className="bg-black/80 w-full p-4 rounded-xl border border-white/10 text-center font-black text-blue-400" value={localData.weight} onChange={(e) => handleChange('weight', e.target.value)} />
+                                </div>
+                            </div>
+                            <button onClick={() => onSave(localData)} className="w-full mt-4 bg-blue-600 p-4 rounded-xl font-black text-white text-lg active:scale-95 transition-transform">שמור תרגיל</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const DayInfoModal = ({ dateInfo, onClose, history, categories, schedule, onUpdateStatus }) => {
+            if (!dateInfo) return null;
+            const dateObj = dateInfo.date;
+            const dateStr = dateObj.toISOString().split('T')[0];
+            const record = history[dateStr];
+            const dayOfWeek = dateObj.getDay();
+            const plannedCatId = schedule[dayOfWeek];
+            const [selectedCatId, setSelectedCatId] = useState(record?.type || plannedCatId || (categories[0]?.id || ''));
+            const hebrewDate = dateObj.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+            return (
+                <div className="fixed inset-0 bg-black/90 z-[200] flex items-center justify-center p-6 animate-[fadeIn_0.2s_ease-out]">
+                    <div className="bg-gray-900 border border-white/10 p-6 rounded-[2.5rem] w-full max-w-sm shadow-2xl relative text-center">
+                        <button onClick={onClose} className="absolute top-4 left-4 text-gray-400 p-2"><Icon name="x" size={20}/></button>
+                        <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/10"><Icon name="calendar" size={32} className="text-blue-400" /></div>
+                        <h3 className="text-xl font-black text-white mb-6">{hebrewDate}</h3>
+                        <div className="bg-black/50 rounded-2xl p-4 mb-6 text-right border border-white/5">
+                            <label className="text-xs text-gray-400 font-bold mb-2 block">איזה אימון מדווח?</label>
+                            <select className="w-full bg-gray-800 border border-white/10 text-white p-3 rounded-xl font-bold outline-none" value={selectedCatId} onChange={(e) => setSelectedCatId(e.target.value)} dir="rtl">
+                                {categories.map(c => <option key={c.id} value={c.id}>{c.name} {c.id === plannedCatId ? '(מתוכנן)' : ''}</option>)}
+                            </select>
+                        </div>
+                        <div className="flex gap-2">
+                            <button onClick={() => onUpdateStatus(dateStr, 'done', selectedCatId)} className={`flex-1 p-4 rounded-xl font-black flex flex-col items-center gap-1 ${record?.status === 'done' ? 'bg-emerald-600 text-white' : 'bg-emerald-600/20 text-emerald-500'}`}><Icon name="check" size={20} /> בוצע</button>
+                            <button onClick={() => onUpdateStatus(dateStr, 'missed', selectedCatId)} className={`flex-1 p-4 rounded-xl font-black flex flex-col items-center gap-1 ${record?.status === 'missed' ? 'bg-rose-600 text-white' : 'bg-rose-600/20 text-rose-500'}`}><Icon name="x" size={20} /> דולג</button>
+                        </div>
+                        {record && <button onClick={() => onUpdateStatus(dateStr, null, null)} className="w-full mt-3 p-3 bg-gray-800 text-gray-400 rounded-xl font-bold">נקה רישום</button>}
+                    </div>
+                </div>
+            );
+        };
+
+        function App() {
+          const [activePage, setActivePage] = useState("home"); 
+          // שיניתי את שם הזיכרון לגרסה 16 כדי למחוק את היידיש השמורה בטלפון שלך
+          const [categories, setCategories] = useState(() => JSON.parse(localStorage.getItem('workout_v16_data')) || DEFAULT_CATEGORIES);
+          const [history, setHistory] = useState(() => JSON.parse(localStorage.getItem('workout_v16_history')) || {});
+          
+          const [manageMode, setManageMode] = useState(false);
+          const [draftCategories, setDraftCategories] = useState(null);
+          const [editingExercise, setEditingExercise] = useState(null);
+          const [timerOpen, setTimerOpen] = useState(false);
+          const [timeLeft, setTimeLeft] = useState(0);
+          const [timerActive, setTimerActive] = useState(false);
+          const [calendarDate, setCalendarDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+          const [selectedDateInfo, setSelectedDateInfo] = useState(null);
+          const [motivationIndex] = useState(Math.floor(Math.random() * MOTIVATIONS.length));
+
+          useEffect(() => { localStorage.setItem('workout_v16_data', JSON.stringify(categories)); }, [categories]);
+          useEffect(() => { localStorage.setItem('workout_v16_history', JSON.stringify(history)); }, [history]);
+          useEffect(() => {
+            let interval;
+            if (timerActive && timeLeft > 0) interval = setInterval(() => setTimeLeft(t => t - 1), 1000);
+            else if (timeLeft === 0) { setTimerActive(false); clearInterval(interval); }
+            return () => clearInterval(interval);
+          }, [timerActive, timeLeft]);
+
+          const today = new Date();
+          const todayKey = today.toISOString().split('T')[0];
+          const dayName = today.toLocaleDateString('he-IL', { weekday: 'long' });
+          const plannedCategory = categories.find(c => c.id === DEFAULT_SCHEDULE[today.getDay()]);
+
+          const enterManageMode = () => { setDraftCategories(JSON.parse(JSON.stringify(categories))); setManageMode(true); };
+          const saveManageMode = () => { setCategories(draftCategories); setManageMode(false); };
+          const cancelManageMode = () => { setManageMode(false); setDraftCategories(null); };
+
+          const moveCategory = (index, dir) => {
+              const newCats = [...draftCategories];
+              if (dir === -1 && index > 0) [newCats[index-1], newCats[index]] = [newCats[index], newCats[index-1]];
+              else if (dir === 1 && index < newCats.length - 1) [newCats[index+1], newCats[index]] = [newCats[index], newCats[index+1]];
+              setDraftCategories(newCats);
+          };
+
+          const addCategory = () => {
+              const name = prompt("הכנס שם לאימון החדש:");
+              if (name) setDraftCategories([...draftCategories, { id: crypto.randomUUID(), name, hex: "#a855f7", icon: "dumbbell", exercises: [] }]);
+          };
+
+          const deleteCategory = (index) => {
+              if (confirm(`למחוק את האימון "${draftCategories[index].name}"?`)) {
+                  const newCats = [...draftCategories]; newCats.splice(index, 1); setDraftCategories(newCats);
+              }
+          };
+
+          const renameCategory = (index) => {
+              const name = prompt("שם חדש לאימון:", draftCategories[index].name);
+              if (name) { const newCats = [...draftCategories]; newCats[index].name = name; setDraftCategories(newCats); }
+          };
+
+          const moveExercise = (index, dir) => {
+              const newCats = [...draftCategories];
+              const catIdx = newCats.findIndex(c => c.id === activePage);
+              const newExs = [...newCats[catIdx].exercises];
+              if (dir === -1 && index > 0) [newExs[index-1], newExs[index]] = [newExs[index], newExs[index-1]];
+              else if (dir === 1 && index < newExs.length - 1) [newExs[index+1], newExs[index]] = [newExs[index], newExs[index+1]];
+              newCats[catIdx].exercises = newExs; setDraftCategories(newCats);
+          };
+
+          const addExercise = () => {
+              const newCats = [...draftCategories];
+              const catIdx = newCats.findIndex(c => c.id === activePage);
+              const newEx = { id: crypto.randomUUID(), name: "תרגיל חדש", sets: 3, reps: 10, weight: "0" };
+              newCats[catIdx].exercises.push(newEx); setDraftCategories(newCats); setEditingExercise(newEx);
+          };
+
+          const deleteExercise = (id) => {
+              if(confirm("למחוק תרגיל זה?")){
+                  const newCats = [...draftCategories];
+                  const catIdx = newCats.findIndex(c => c.id === activePage);
+                  newCats[catIdx].exercises = newCats[catIdx].exercises.filter(e => e.id !== id);
+                  setDraftCategories(newCats);
+              }
+          };
+
+          const handleSaveExerciseModal = (updatedEx) => {
+              if (manageMode) {
+                  const newCats = [...draftCategories];
+                  const catIdx = newCats.findIndex(c => c.id === activePage);
+                  newCats[catIdx].exercises = newCats[catIdx].exercises.map(e => e.id === updatedEx.id ? updatedEx : e);
+                  setDraftCategories(newCats);
+              }
+              setEditingExercise(null);
+          };
+
+          const updateRetroStatus = (dateStr, status, categoryId) => {
+              setHistory(prev => {
+                  const newHist = { ...prev };
+                  if (!status) delete newHist[dateStr];
+                  else newHist[dateStr] = { type: categoryId, status: status };
+                  return newHist;
+              });
+              setSelectedDateInfo(null); 
+          };
+
+          const displayCategories = manageMode ? draftCategories : categories;
+
+          const renderHomeView = () => (
+            <div className="flex flex-col items-center gap-8 p-6" dir="rtl">
+              <div className="w-full flex justify-between items-center mt-4">
+                  <div className="w-12"></div>
+                  <h1 className="text-xl font-bold text-white italic text-center px-4 flex-1">"{MOTIVATIONS[motivationIndex]}"</h1>
+                  {!manageMode && <button onClick={enterManageMode} className="p-3 bg-white/5 rounded-full text-gray-400"><Icon name="settings" size={20} /></button>}
+              </div>
+              <div className="text-center bg-gray-900/80 p-6 rounded-3xl border border-white/5 w-full max-w-sm shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-emerald-500"></div>
+                <p className="text-gray-500 text-xs mb-1 uppercase tracking-widest font-bold">היום {dayName}</p>
+                <p className="text-2xl font-black text-blue-400">אימון: {plannedCategory?.name || "מנוחה"}</p>
+              </div>
+              <div className="grid w-full gap-4 max-w-sm">
+                {displayCategories.map((cat, index) => (
+                  <div key={cat.id} className="relative flex items-center gap-2">
+                      {manageMode && <div className="flex flex-col gap-1">
+                          <button onClick={() => moveCategory(index, -1)} className="p-2 bg-white/5 rounded-lg"><Icon name="arrowUp" size={16}/></button>
+                          <button onClick={() => moveCategory(index, 1)} className="p-2 bg-white/5 rounded-lg"><Icon name="arrowDown" size={16}/></button>
+                      </div>}
+                      <button onClick={() => manageMode ? renameCategory(index) : setActivePage(cat.id)} className={`flex-1 flex items-center justify-between p-6 rounded-[2.5rem] transition-all shadow-lg border ${manageMode ? 'border-blue-500 bg-blue-900/10' : 'border-white/5 bg-gray-900'}`}>
+                        {manageMode ? <Icon name="edit2" size={20} className="text-blue-400" /> : <Icon name="arrowLeft" size={20} className="text-white/40" />}
+                        <div className="flex items-center gap-5 text-white"><span className="text-xl font-black">{cat.name}</span><span className="p-3 bg-black/40 rounded-2xl" style={{color: cat.hex}}><Icon name={cat.icon} size={24} /></span></div>
+                      </button>
+                      {manageMode && <button onClick={() => deleteCategory(index)} className="p-4 bg-rose-500/10 text-rose-500 rounded-2xl h-full ml-1"><Icon name="trash2" size={20}/></button>}
+                  </div>
+                ))}
+                {manageMode && <button onClick={addCategory} className="w-full p-6 border-2 border-dashed border-white/10 rounded-[2.5rem] text-gray-400 font-bold flex flex-col items-center gap-2">
+                    <Icon name="plus" size={24} /> הוסף אימון חדש
+                </button>}
+              </div>
+              <div className="w-full max-w-sm mt-4">{renderCalendarView()}</div>
+            </div>
+          );
+
+          const renderCalendarView = () => {
+            const daysInMonth = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 0).getDate();
+            const firstDay = new Date(calendarDate.getFullYear(), calendarDate.getMonth(), 1).getDay();
+            const monthName = calendarDate.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' });
+            return (
+              <div className="bg-gray-900/80 p-6 rounded-[2.5rem] border border-white/5 shadow-xl" dir="rtl">
+                <div className="flex justify-between items-center mb-6 px-2">
+                  <button onClick={() => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1))} className="p-2 bg-white/5 rounded-full"><Icon name="chevronRight" size={16}/></button>
+                  <h3 className="font-black text-lg text-white/90">{monthName}</h3>
+                  <button onClick={() => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1))} className="p-2 bg-white/5 rounded-full"><Icon name="chevronLeft" size={16}/></button>
+                </div>
+                <div className="grid grid-cols-7 gap-2 text-center">
+                  {['א','ב','ג','ד','ה','ו','ש'].map(d => <div key={d} className="text-[11px] font-bold text-gray-500 uppercase">{d}</div>)}
+                  {[...Array(firstDay)].map((_, i) => <div key={`empty-${i}`} />)}
+                  {[...Array(daysInMonth)].map((_, i) => {
+                    const dNum = i + 1;
+                    const cellD = new Date(calendarDate.getFullYear(), calendarDate.getMonth(), dNum);
+                    const dStr = cellD.toISOString().split('T')[0];
+                    const record = history[dStr];
+                    const planned = categories.find(c => c.id === DEFAULT_SCHEDULE[cellD.getDay()]);
+                    let cellStyle = "bg-gray-800/30 text-gray-500 cursor-pointer transition-all";
+                    let IconComp = null; let finalBg = null;
+                    if (record) {
+                        finalBg = categories.find(c => c.id === record.type)?.hex || planned?.hex || "#3b82f6";
+                        cellStyle = record.status === 'done' ? "text-white scale-105" : "bg-rose-500 text-white";
+                        IconComp = record.status === 'done' ? <Icon name="check" size={12} className="mt-0.5" /> : <Icon name="x" size={12} className="mt-0.5" />;
+                    } else if (dNum === today.getDate() && calendarDate.getMonth() === today.getMonth()) cellStyle = "border border-blue-500 text-blue-400 font-black";
+                    return (
+                      <div key={dNum} onClick={() => setSelectedDateInfo({ date: cellD })} style={{ backgroundColor: finalBg }} className={`aspect-square flex flex-col items-center justify-center rounded-xl text-[12px] font-bold ${cellStyle}`}>
+                        {dNum} {IconComp ? IconComp : (planned && <div style={{ backgroundColor: planned.hex }} className="w-1.5 h-1.5 rounded-full mt-1 opacity-80" />)}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          };
+
+          const renderWorkoutDetailView = () => {
+            const category = displayCategories.find(c => c.id === activePage);
+            if (!category) return null;
+            const todayRec = history[todayKey];
+            return (
+                <div className="p-6 pb-32" dir="rtl">
+                  <div className="flex justify-between items-center mb-8">
+                      {!manageMode ? <button onClick={() => setActivePage("home")} className="flex items-center gap-2 text-gray-400"><Icon name="chevronRight" size={24} /><span className="font-bold text-lg">חזרה לראשי</span></button> : <span className="font-bold text-blue-400 px-2 py-1 bg-blue-500/10 rounded-lg">מצב עריכה מופעל</span>}
+                      {!manageMode && <button onClick={enterManageMode} className="p-3 bg-white/5 rounded-full text-gray-400"><Icon name="settings" size={20} /></button>}
+                  </div>
+                  <div className="mb-8">
+                        <p className="text-blue-500 text-sm font-bold mb-1 uppercase">אימון נוכחי</p>
+                        <h2 className="text-4xl font-black text-white">{category.name}</h2>
+                  </div>
+                  {!manageMode && <div className="flex gap-4 mb-10">
+                    <button onClick={() => updateRetroStatus(todayKey, 'done', activePage)} className={`flex-1 flex flex-col items-center justify-center py-5 rounded-[2.5rem] border transition-all ${todayRec?.status === 'done' && todayRec?.type === activePage ? 'bg-emerald-600 border-emerald-500 text-white scale-105 shadow-lg' : 'bg-gray-900/60 border-white/5 text-gray-400'}`}><Icon name="check" size={24} className="mb-1" /><span className="font-black text-xs">סיימתי היום</span></button>
+                    <button onClick={() => updateRetroStatus(todayKey, 'missed', activePage)} className={`flex-1 flex flex-col items-center justify-center py-5 rounded-[2.5rem] border transition-all ${todayRec?.status === 'missed' && todayRec?.type === activePage ? 'bg-rose-600 border-rose-500 text-white scale-105 shadow-lg' : 'bg-gray-900/60 border-white/5 text-gray-400'}`}><Icon name="x" size={24} className="mb-1" /><span className="font-black text-xs">דילגתי היום</span></button>
+                  </div>}
+                  <div className="space-y-4">
+                    {category.exercises.map((ex, idx) => (
+                      <div key={ex.id} className="flex gap-2">
+                        {manageMode && <div className="flex flex-col gap-1 justify-center"><button onClick={() => moveExercise(idx, -1)} className="p-2 bg-white/5 rounded-lg"><Icon name="arrowUp" size={16}/></button><button onClick={() => moveExercise(idx, 1)} className="p-2 bg-white/5 rounded-lg"><Icon name="arrowDown" size={16}/></button></div>}
+                        <div className={`flex-1 p-6 rounded-[2rem] border relative overflow-hidden flex justify-between items-center ${manageMode ? 'bg-blue-900/10 border-blue-500/50' : 'bg-gray-900/80 border-white/5'}`}>
+                            <div className="absolute top-0 right-0 w-1.5 h-full opacity-50" style={{backgroundColor: category.hex}}></div>
+                            <div className="space-y-2 flex-1">
+                                <h4 className="font-black text-xl text-white/90 pr-2">{ex.name}</h4>
+                                <div className="flex gap-6 text-sm pr-2">
+                                    <div className="flex flex-col"><span className="text-[10px] text-gray-500 font-bold uppercase">סטים</span><span className="text-white font-black text-lg">{ex.sets}</span></div>
+                                    <div className="flex flex-col"><span className="text-[10px] text-gray-500 font-bold uppercase">חזרות</span><span className="text-white font-black text-lg">{ex.reps}</span></div>
+                                    <div className="flex flex-col"><span className="text-[10px] font-bold uppercase" style={{color: category.hex}}>משקל</span><span className="text-white font-black text-lg">{ex.weight} <small className="text-[10px]">ק"ג</small></span></div>
+                                </div>
+                            </div>
+                            <div className="flex flex-col gap-2">{manageMode && <><button onClick={() => setEditingExercise(ex)} className="p-3 text-blue-400 bg-blue-500/10 rounded-2xl"><Icon name="edit2" size={18} /></button><button onClick={() => deleteExercise(ex.id)} className="p-3 text-rose-500 bg-rose-500/10 rounded-2xl"><Icon name="trash2" size={18} /></button></>}</div>
+                        </div>
+                      </div>
+                    ))}
+                    {manageMode && <button onClick={addExercise} className="w-full mt-4 p-6 border-2 border-dashed border-white/10 rounded-[2rem] text-gray-400 font-bold flex flex-col items-center gap-2"><Icon name="plus" size={24} /> הוסף תרגיל חדש</button>}
+                  </div>
+                </div>
+              );
+          };
+
+          return (
+            <div className="min-h-screen">
+              <main className={`relative z-10 max-w-lg mx-auto min-h-screen ${manageMode ? 'pb-32' : 'pb-10'}`}>
+                {activePage === "home" ? renderHomeView() : renderWorkoutDetailView()}
+              </main>
+              {!manageMode && <div className="fixed bottom-10 left-8 z-50">{timeLeft > 0 ? <button onClick={() => setTimerOpen(true)} className="w-20 h-20 bg-blue-600 rounded-[2rem] flex flex-col items-center justify-center shadow-lg border-2 border-black animate-pulse"><span className="text-2xl font-black leading-none">{timeLeft}</span><span className="text-[8px] font-bold uppercase mt-1">שניות</span></button> : <button onClick={() => setTimerOpen(true)} className="w-16 h-16 bg-gray-900 border border-white/10 rounded-[1.8rem] flex items-center justify-center shadow-lg text-blue-500"><Icon name="clock" size={32} /></button>}</div>}
+              {manageMode && <div className="fixed bottom-0 left-0 w-full p-6 bg-[#0a0a0a] border-t border-white/10 z-[150] flex gap-4 animate-slideUp" dir="rtl"><button onClick={saveManageMode} className="flex-1 bg-emerald-600 text-white p-4 rounded-2xl font-black flex items-center justify-center gap-2 shadow-lg"><Icon name="check" size={24}/> <span className="text-sm font-black">שמור שינויים</span></button><button onClick={cancelManageMode} className="flex-1 bg-gray-800 text-white p-4 rounded-2xl font-black flex items-center justify-center gap-2 shadow-lg"><Icon name="x" size={24}/> <span className="text-sm font-black">ביטול</span></button></div>}
+              {editingExercise && <ExerciseEditModal exercise={editingExercise} onSave={handleSaveExerciseModal} onClose={() => setEditingExercise(null)} />}
+              {selectedDateInfo && <DayInfoModal dateInfo={selectedDateInfo} onClose={() => setSelectedDateInfo(null)} history={history} categories={categories} schedule={DEFAULT_SCHEDULE} onUpdateStatus={updateRetroStatus} />}
+              {timerOpen && <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] flex items-end animate-in slide-in-from-bottom" dir="rtl"><div className="w-full bg-[#0a0a0a] rounded-t-[3rem] p-8 border-t border-white/5 pb-12 shadow-2xl"><div className="w-16 h-1.5 bg-gray-800 mx-auto rounded-full mb-8" onClick={() => setTimerOpen(false)}></div><h3 className="text-center text-2xl font-black mb-8 text-white tracking-tight">זמן מנוחה</h3><div className="flex justify-center gap-4 mb-8 overflow-x-auto py-2 no-scrollbar">{[30, 45, 60, 90, 120].map(s => <button key={s} onClick={() => startTimer(s)} className="min-w-[80px] h-[80px] rounded-3xl flex flex-col items-center justify-center bg-gray-900 text-gray-300 active:bg-blue-600 active:text-white transition-colors"><span className="text-3xl font-black">{s}</span><span className="text-[10px] font-bold uppercase mt-1">שניות</span></button>)}</div><button onClick={() => setTimerOpen(false)} className="w-full py-4 bg-gray-900 rounded-[1.5rem] font-black text-gray-500 uppercase text-xs">סגור</button></div></div>}
+            </div>
+          );
+        }
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+<script>
+      // רישום מנוע הרקע (Service Worker)
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js')
+            .then(registration => {
+              console.log('ServiceWorker registration successful with scope: ', registration.scope);
+            })
+            .catch(err => {
+              console.log('ServiceWorker registration failed: ', err);
+            });
+        });
+      }
+    </script>
+</body>
+</html>
