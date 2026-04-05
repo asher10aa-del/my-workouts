@@ -285,9 +285,9 @@
         function App() {
             const [activePage, setActivePage] = useState("home"); 
             
-            // טעינת נתונים
-            const [categories, setCategories] = useState(() => JSON.parse(localStorage.getItem('workout_v17_data')) || []);
-            const [history, setHistory] = useState(() => JSON.parse(localStorage.getItem('workout_v17_history')) || {});
+            // טעינת נתונים - החזרתי לגרסה 16 כדי שהנתונים הישנים שלך ייטענו!
+            const [categories, setCategories] = useState(() => JSON.parse(localStorage.getItem('workout_v16_data')) || []);
+            const [history, setHistory] = useState(() => JSON.parse(localStorage.getItem('workout_v16_history')) || {});
             const [prefs, setPrefs] = useState(() => JSON.parse(localStorage.getItem('workout_v17_prefs')) || { showCalendar: true, showTimer: true, theme: 'dark' });
             
             const [manageMode, setManageMode] = useState(false);
@@ -295,14 +295,16 @@
             const [isSettingsOpen, setIsSettingsOpen] = useState(false);
             const [activeExModal, setActiveExModal] = useState(null);
 
-            // אתחול דאטה אם ריק
+            // אתחול דאטה אם ריק - עכשיו רק אם באמת אין כלום
             useEffect(() => {
-                if (categories.length === 0) setCategories([{ id: 'c1', name: "אימון דוגמה", hex: "#3b82f6", icon: "dumbbell", exercises: [{ id: 'ex1', name: "לחיצת חזה", sets: 3, reps: 10, weight: "20" }] }]);
+                if (!categories || categories.length === 0) {
+                     setCategories([{ id: 'c1', name: "אימון דוגמה", hex: "#3b82f6", icon: "dumbbell", exercises: [{ id: 'ex1', name: "לחיצת חזה", sets: 3, reps: 10, weight: "20" }] }]);
+                }
             }, []);
 
             // שמירות לוקאליות והחלת ערכת נושא
-            useEffect(() => { localStorage.setItem('workout_v17_data', JSON.stringify(categories)); }, [categories]);
-            useEffect(() => { localStorage.setItem('workout_v17_history', JSON.stringify(history)); }, [history]);
+            useEffect(() => { localStorage.setItem('workout_v16_data', JSON.stringify(categories)); }, [categories]);
+            useEffect(() => { localStorage.setItem('workout_v16_history', JSON.stringify(history)); }, [history]);
             useEffect(() => { 
                 localStorage.setItem('workout_v17_prefs', JSON.stringify(prefs));
                 const t = THEMES[prefs.theme] || THEMES.dark;
@@ -368,8 +370,22 @@
                                         {manageMode ? <Icon name="edit2" size={20} className="text-primary" /> : <Icon name="arrowLeft" size={20} className="text-white/40" />}
                                         <div className="flex items-center gap-5 text-white"><span className="text-xl font-black">{cat.name}</span><span className="p-3 bg-black/40 rounded-2xl" style={{color: cat.hex}}><Icon name={cat.icon} size={24} /></span></div>
                                     </button>
+                                    {manageMode && (
+                                        <button onClick={() => { if(confirm(`למחוק את ${cat.name}?`)) { const n=[...draftCategories]; n.splice(index,1); setDraftCategories(n); } }} className="p-4 bg-rose-500/10 text-rose-500 rounded-2xl h-full ml-1">
+                                            <Icon name="trash2" size={20}/>
+                                        </button>
+                                    )}
                                 </div>
                             ))}
+                            {/* כפתור הוספת אימון במצב עריכה */}
+                            {manageMode && (
+                                <button onClick={() => {
+                                    const name = prompt("שם האימון החדש:");
+                                    if(name) setDraftCategories([...draftCategories, { id: crypto.randomUUID(), name, hex: "#a855f7", icon: "dumbbell", exercises: [] }]);
+                                }} className="w-full p-6 border-2 border-dashed border-white/10 rounded-[2.5rem] text-gray-400 font-bold flex flex-col items-center gap-2">
+                                    <Icon name="plus" size={24} /> הוסף אימון חדש
+                                </button>
+                            )}
                         </div>
 
                         {prefs.showCalendar && !manageMode && (
@@ -398,6 +414,8 @@
                     <div className="p-6 pb-32 animate-fadeIn" dir="rtl">
                         <div className="flex justify-between items-center mb-8">
                             <button onClick={() => setActivePage("home")} className="flex items-center gap-2 text-gray-400 active:scale-95"><Icon name="chevronRight" size={24} /><span className="font-bold text-lg">חזרה לראשי</span></button>
+                            {/* כפתור הגדרות גם במסך האימון */}
+                            {!manageMode && <button onClick={() => setIsSettingsOpen(true)} className="p-3 bg-white/5 rounded-full text-gray-400 active:scale-95 transition-transform"><Icon name="settings" size={20} /></button>}
                         </div>
                         <div className="mb-8"><p className="text-primary text-sm font-bold mb-1 uppercase">אימון נוכחי</p><h2 className="text-4xl font-black text-white">{category.name}</h2></div>
                         
