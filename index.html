@@ -171,12 +171,30 @@
             );
         };
 
-        // --- מסך הגדרות ---
+        // --- מסך הגדרות עם כפתור עדכון כפוי ---
         const SettingsModal = ({ isOpen, onClose, prefs, setPrefs, enterManageMode, exportData, importData }) => {
             if (!isOpen) return null;
+
+            // פונקציית עדכון גרסה כפוי
+            const forceUpdate = () => {
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                        for(let registration of registrations) {
+                            registration.update();
+                        }
+                    });
+                }
+                // מוחק את זיכרון המטמון של הקוד ומרענן
+                caches.keys().then((names) => {
+                    for (let name of names) caches.delete(name);
+                }).then(() => {
+                    window.location.reload(true);
+                });
+            };
+
             return (
                 <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-[200] flex items-center justify-center p-6 animate-fadeIn" dir="rtl">
-                    <div className="glass-panel w-full max-w-sm rounded-[2.5rem] p-6 shadow-2xl relative animate-scaleIn border">
+                    <div className="glass-panel w-full max-w-sm rounded-[2.5rem] p-6 shadow-2xl relative animate-scaleIn border max-h-[90vh] overflow-y-auto no-scrollbar">
                         <button onClick={onClose} className="absolute top-6 left-6 text-gray-400 p-2"><Icon name="x" size={24}/></button>
                         <h2 className="text-2xl font-black text-white mb-8 pr-2">הגדרות מתקדמות</h2>
                         
@@ -216,6 +234,12 @@
                                     <label className="flex-1 bg-white/5 p-3 rounded-xl font-bold flex flex-col items-center gap-1 border border-white/10 text-sm text-white cursor-pointer"><Icon name="arrowUp" size={18} /> שחזור מקובץ<input type="file" accept=".json" onChange={importData} className="hidden" /></label>
                                 </div>
                             </div>
+
+                            {/* הכפתור החדש לעדכון כפוי */}
+                            <button onClick={forceUpdate} className="w-full p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl flex items-center justify-center gap-2 text-rose-400 active:scale-95 transition-transform mt-4">
+                                <Icon name="zap" size={20} />
+                                <span className="font-bold">כפה רענון גרסה מהשרת</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -285,7 +309,7 @@
         function App() {
             const [activePage, setActivePage] = useState("home"); 
             
-            // טעינת נתונים - החזרתי לגרסה 16 כדי שהנתונים הישנים שלך ייטענו!
+            // טעינת נתונים - v16 כדי לשמור על האימונים הקיימים שלך
             const [categories, setCategories] = useState(() => JSON.parse(localStorage.getItem('workout_v16_data')) || []);
             const [history, setHistory] = useState(() => JSON.parse(localStorage.getItem('workout_v16_history')) || {});
             const [prefs, setPrefs] = useState(() => JSON.parse(localStorage.getItem('workout_v17_prefs')) || { showCalendar: true, showTimer: true, theme: 'dark' });
@@ -377,7 +401,6 @@
                                     )}
                                 </div>
                             ))}
-                            {/* כפתור הוספת אימון במצב עריכה */}
                             {manageMode && (
                                 <button onClick={() => {
                                     const name = prompt("שם האימון החדש:");
@@ -414,7 +437,6 @@
                     <div className="p-6 pb-32 animate-fadeIn" dir="rtl">
                         <div className="flex justify-between items-center mb-8">
                             <button onClick={() => setActivePage("home")} className="flex items-center gap-2 text-gray-400 active:scale-95"><Icon name="chevronRight" size={24} /><span className="font-bold text-lg">חזרה לראשי</span></button>
-                            {/* כפתור הגדרות גם במסך האימון */}
                             {!manageMode && <button onClick={() => setIsSettingsOpen(true)} className="p-3 bg-white/5 rounded-full text-gray-400 active:scale-95 transition-transform"><Icon name="settings" size={20} /></button>}
                         </div>
                         <div className="mb-8"><p className="text-primary text-sm font-bold mb-1 uppercase">אימון נוכחי</p><h2 className="text-4xl font-black text-white">{category.name}</h2></div>
