@@ -82,31 +82,15 @@
         const MOTIVATIONS = ["אין קיצורי דרך — רק עבודה קשה 💪", "כל אימון מקרב אותך למטרה שלך", "הגוף שלך יכול יותר ממה שאתה חושב", "תתמיד היום, תודה לעצמך מחר"];
         const DEFAULT_SCHEDULE = { 0: 'c1', 1: 'c3', 2: null, 3: 'c2', 4: 'c3', 5: null, 6: 'c4' };
         
-        // --- קומפוננטת טיימר מבודדת ---
-        const WorkoutTimer = ({ showTimer }) => {
-            const [timerOpen, setTimerOpen] = useState(false);
-            const [timeLeft, setTimeLeft] = useState(0);
-            const [timerActive, setTimerActive] = useState(false);
-
-            useEffect(() => {
-                let interval;
-                if (timerActive && timeLeft > 0) interval = setInterval(() => setTimeLeft(t => t - 1), 1000);
-                else if (timerActive && timeLeft === 0) { 
-                    setTimerActive(false); 
-                    clearInterval(interval); 
-                    if(navigator.vibrate) navigator.vibrate([300, 100, 300]);
-                    setTimeout(() => alert("💪 הזמן נגמר! חוזרים לעבוד."), 100);
-                }
-                return () => clearInterval(interval);
-            }, [timerActive, timeLeft]);
-
+        // --- קומפוננטת טיימר מבודדת צפה ---
+        const WorkoutTimerUI = ({ showTimer, timeLeft, timerActive, timerOpen, setTimerOpen, startTimer, setTimerActive, setTimeLeft }) => {
             if (!showTimer) return null;
 
             return (
                 <>
-                    <div className="fixed bottom-10 left-8 z-50 animate-scaleIn">
+                    <div className="fixed bottom-10 left-8 z-[50] animate-scaleIn">
                         {timeLeft > 0 ? (
-                            <button onClick={() => setTimerOpen(true)} className="w-20 h-20 bg-primary rounded-[2rem] flex flex-col items-center justify-center shadow-[0_10px_40px_rgba(0,0,0,0.5)] border-2 border-black animate-pulse">
+                            <button onClick={() => setTimerOpen(true)} className="w-20 h-20 bg-primary rounded-[2rem] flex flex-col items-center justify-center shadow-[0_10px_40px_rgba(0,0,0,0.5)] border-2 border-[var(--theme-bg)] animate-pulse transition-transform active:scale-95">
                                 <span className="text-2xl font-black text-white leading-none">{timeLeft}</span>
                                 <span className="text-[8px] font-bold text-white/80 uppercase mt-1">שניות</span>
                             </button>
@@ -126,19 +110,19 @@
                                 {timerActive ? (
                                     <div className="text-center mb-8">
                                         <div className="text-6xl font-black text-primary mb-6">{timeLeft}</div>
-                                        <button onClick={() => { setTimerActive(false); setTimeLeft(0); setTimerOpen(false); }} className="px-8 py-4 bg-rose-500/20 text-rose-500 rounded-2xl font-black text-lg border border-rose-500/30">ביטול טיימר</button>
+                                        <button onClick={() => { setTimerActive(false); setTimeLeft(0); setTimerOpen(false); }} className="px-8 py-4 bg-rose-500/20 text-rose-500 rounded-2xl font-black text-lg border border-rose-500/30 active:scale-95 transition-transform">ביטול טיימר</button>
                                     </div>
                                 ) : (
                                     <div className="flex justify-center gap-4 mb-8 overflow-x-auto py-2 no-scrollbar">
                                         {[30, 45, 60, 90, 120].map(s => (
-                                            <button key={s} onClick={() => { setTimeLeft(s); setTimerActive(true); setTimerOpen(false); }} className="min-w-[80px] h-[80px] rounded-3xl flex flex-col items-center justify-center bg-[var(--theme-input-bg)] text-[var(--theme-text)] active:bg-primary active:text-white transition-colors border border-[var(--theme-border)]">
+                                            <button key={s} onClick={() => startTimer(s)} className="min-w-[80px] h-[80px] rounded-3xl flex flex-col items-center justify-center bg-[var(--theme-input-bg)] text-[var(--theme-text)] active:bg-primary active:text-white transition-colors border border-[var(--theme-border)]">
                                                 <span className="text-3xl font-black">{s}</span>
                                                 <span className="text-[10px] font-bold uppercase mt-1">שניות</span>
                                             </button>
                                         ))}
                                     </div>
                                 )}
-                                <button onClick={() => setTimerOpen(false)} className="w-full py-4 bg-[var(--theme-input-bg)] rounded-[1.5rem] font-black text-[var(--theme-muted)] uppercase text-xs border border-[var(--theme-border)]">סגור</button>
+                                <button onClick={() => setTimerOpen(false)} className="w-full py-4 bg-[var(--theme-input-bg)] rounded-[1.5rem] font-black text-[var(--theme-muted)] uppercase text-xs border border-[var(--theme-border)] active:scale-95 transition-transform">סגור</button>
                             </div>
                         </div>
                     )}
@@ -170,10 +154,10 @@
                             </select>
                         </div>
                         <div className="flex gap-2">
-                            <button onClick={() => onUpdateStatus(dateStr, 'done', selectedCatId)} className={`flex-1 p-4 rounded-xl font-black flex flex-col items-center gap-1 ${record?.status === 'done' ? 'bg-emerald-600 text-white' : 'bg-emerald-600/20 text-emerald-500'}`}><Icon name="check" size={20} /> בוצע</button>
-                            <button onClick={() => onUpdateStatus(dateStr, 'missed', selectedCatId)} className={`flex-1 p-4 rounded-xl font-black flex flex-col items-center gap-1 ${record?.status === 'missed' ? 'bg-rose-600 text-white' : 'bg-rose-600/20 text-rose-500'}`}><Icon name="x" size={20} /> דולג</button>
+                            <button onClick={() => onUpdateStatus(dateStr, 'done', selectedCatId)} className={`flex-1 p-4 rounded-xl font-black flex flex-col items-center gap-1 transition-transform active:scale-95 ${record?.status === 'done' ? 'bg-emerald-600 text-white' : 'bg-emerald-600/20 text-emerald-500'}`}><Icon name="check" size={20} /> בוצע</button>
+                            <button onClick={() => onUpdateStatus(dateStr, 'missed', selectedCatId)} className={`flex-1 p-4 rounded-xl font-black flex flex-col items-center gap-1 transition-transform active:scale-95 ${record?.status === 'missed' ? 'bg-rose-600 text-white' : 'bg-rose-600/20 text-rose-500'}`}><Icon name="x" size={20} /> דולג</button>
                         </div>
-                        {record && <button onClick={() => onUpdateStatus(dateStr, null, null)} className="w-full mt-3 p-3 bg-transparent border border-[var(--theme-border)] text-[var(--theme-muted)] rounded-xl font-bold">נקה רישום</button>}
+                        {record && <button onClick={() => onUpdateStatus(dateStr, null, null)} className="w-full mt-3 p-3 bg-transparent border border-[var(--theme-border)] text-[var(--theme-muted)] rounded-xl font-bold transition-transform active:scale-95">נקה רישום</button>}
                     </div>
                 </div>
             );
@@ -183,6 +167,19 @@
         const SettingsModal = ({ isOpen, onClose, prefs, setPrefs, enterManageMode, exportData, importData }) => {
             if (!isOpen) return null;
 
+            const forceUpdate = () => {
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                        for(let registration of registrations) { registration.update(); }
+                    });
+                }
+                caches.keys().then((names) => {
+                    for (let name of names) caches.delete(name);
+                }).then(() => {
+                    window.location.reload(true);
+                });
+            };
+
             return (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[200] flex items-center justify-center p-6 animate-fadeIn" dir="rtl">
                     <div className="glass-panel w-full max-w-sm rounded-[2.5rem] p-6 shadow-2xl relative animate-scaleIn border border-[var(--theme-border)] max-h-[90vh] overflow-y-auto no-scrollbar">
@@ -190,7 +187,7 @@
                         <h2 className="text-2xl font-black text-[var(--theme-text)] mb-8 pr-2">הגדרות מתקדמות</h2>
                         
                         <div className="space-y-6">
-                            <button onClick={() => { onClose(); enterManageMode(); }} className="w-full p-4 bg-primary/10 border border-primary/30 rounded-2xl flex items-center gap-4 text-primary transition-active active:scale-95">
+                            <button onClick={() => { onClose(); enterManageMode(); }} className="w-full p-4 bg-primary/10 border border-primary/30 rounded-2xl flex items-center gap-4 text-primary transition-transform active:scale-95">
                                 <Icon name="edit2" size={24} />
                                 <div className="text-right flex-1"><p className="font-black text-lg">עריכה</p><p className="text-xs opacity-70">הוספה, מחיקה ועריכת אימונים ותרגילים</p></div>
                             </button>
@@ -225,12 +222,12 @@
                             <div className="p-4 bg-[var(--theme-input-bg)] rounded-2xl border border-[var(--theme-border)]">
                                 <h3 className="font-bold text-[var(--theme-muted)] text-sm mb-4">גיבוי נתונים</h3>
                                 <div className="flex gap-2">
-                                    <button onClick={exportData} className="flex-1 bg-transparent p-3 rounded-xl font-bold flex flex-col items-center gap-1 border border-[var(--theme-border)] text-sm text-[var(--theme-text)]"><Icon name="arrowDown" size={18} /> גיבוי למכשיר</button>
-                                    <label className="flex-1 bg-transparent p-3 rounded-xl font-bold flex flex-col items-center gap-1 border border-[var(--theme-border)] text-sm text-[var(--theme-text)] cursor-pointer"><Icon name="arrowUp" size={18} /> שחזור מקובץ<input type="file" accept=".json" onChange={importData} className="hidden" /></label>
+                                    <button onClick={exportData} className="flex-1 bg-transparent p-3 rounded-xl font-bold flex flex-col items-center gap-1 border border-[var(--theme-border)] text-sm text-[var(--theme-text)] active:scale-95 transition-transform"><Icon name="arrowDown" size={18} /> גיבוי למכשיר</button>
+                                    <label className="flex-1 bg-transparent p-3 rounded-xl font-bold flex flex-col items-center gap-1 border border-[var(--theme-border)] text-sm text-[var(--theme-text)] cursor-pointer active:scale-95 transition-transform"><Icon name="arrowUp" size={18} /> שחזור מקובץ<input type="file" accept=".json" onChange={importData} className="hidden" /></label>
                                 </div>
                             </div>
 
-                            <button onClick={() => window.location.reload(true)} className="w-full p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl flex items-center justify-center gap-2 text-rose-500 active:scale-95 transition-transform mt-4">
+                            <button onClick={forceUpdate} className="w-full p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl flex items-center justify-center gap-2 text-rose-500 active:scale-95 transition-transform mt-4">
                                 <Icon name="zap" size={20} />
                                 <span className="font-bold">כפה רענון גרסה</span>
                             </button>
@@ -242,7 +239,7 @@
 
         // --- חלון עריכה מהירה לתרגיל (Quick Edit & Graph) ---
         const ExerciseQuickEditModal = ({ exercise, categoryHex, onSave, onClose, prefs }) => {
-            const [localEx, setLocalEx] = useState({ ...exercise, sets: exercise.sets || "", reps: exercise.reps || "", notes: exercise.notes || "", historyLog: exercise.historyLog || [] });
+            const [localEx, setLocalEx] = useState({ ...exercise, sets: exercise.sets || "", reps: exercise.reps || "", notes: exercise.notes || "", restTime: exercise.restTime || "60", historyLog: exercise.historyLog || [] });
             const handleChange = (f, v) => setLocalEx(p => ({ ...p, [f]: v }));
             
             const logCurrentWeight = () => {
@@ -257,13 +254,23 @@
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[200] flex items-center justify-center p-4 animate-fadeIn" dir="rtl">
                     <div className="glass-panel w-full max-w-sm rounded-[2.5rem] p-6 shadow-2xl relative animate-scaleIn border border-[var(--theme-border)] max-h-[90vh] overflow-y-auto no-scrollbar">
                         <button onClick={onClose} className="absolute top-6 left-6 text-[var(--theme-muted)] p-2"><Icon name="x" size={24}/></button>
-                        <h3 className="text-2xl font-black mb-6 text-[var(--theme-text)] pr-2 border-r-4" style={{borderColor: categoryHex}}>{localEx.name}</h3>
+                        
+                        {/* תיבת עריכה לשם התרגיל */}
+                        <input 
+                            type="text"
+                            className="text-2xl font-black mb-6 text-[var(--theme-text)] bg-transparent border-b-2 border-[var(--theme-border)] focus:border-primary border-dashed outline-none w-full pb-2 pr-2 border-r-4 placeholder-[var(--theme-muted)] transition-colors"
+                            style={{borderRightColor: categoryHex}}
+                            value={localEx.name}
+                            onChange={(e) => handleChange('name', e.target.value)}
+                            placeholder="הכנס שם תרגיל..."
+                        />
                         
                         <div className="space-y-5">
-                            <div className="grid grid-cols-3 gap-3">
-                                <div className="bg-[var(--theme-input-bg)] p-3 rounded-2xl border border-[var(--theme-border)]"><label className="text-[10px] text-[var(--theme-muted)] font-bold mb-1 block text-center">סטים</label><input type="text" className="bg-transparent w-full text-center font-black text-xl text-[var(--theme-text)] outline-none" value={localEx.sets} onChange={(e) => handleChange('sets', e.target.value)} /></div>
-                                <div className="bg-[var(--theme-input-bg)] p-3 rounded-2xl border border-[var(--theme-border)]"><label className="text-[10px] text-[var(--theme-muted)] font-bold mb-1 block text-center">חזרות</label><input type="text" className="bg-transparent w-full text-center font-black text-xl text-[var(--theme-text)] outline-none" value={localEx.reps} onChange={(e) => handleChange('reps', e.target.value)} /></div>
-                                <div className="bg-primary/10 p-3 rounded-2xl border border-primary/30"><label className="text-[10px] text-primary font-bold mb-1 block text-center">משקל</label><input type="text" className="bg-transparent w-full text-center font-black text-xl text-[var(--theme-text)] outline-none" value={localEx.weight} onChange={(e) => handleChange('weight', e.target.value)} /></div>
+                            <div className="grid grid-cols-4 gap-2">
+                                <div className="bg-[var(--theme-input-bg)] p-3 rounded-2xl border border-[var(--theme-border)]"><label className="text-[10px] text-[var(--theme-muted)] font-bold mb-1 block text-center">סטים</label><input type="text" className="bg-transparent w-full text-center font-black text-lg text-[var(--theme-text)] outline-none" value={localEx.sets} onChange={(e) => handleChange('sets', e.target.value)} /></div>
+                                <div className="bg-[var(--theme-input-bg)] p-3 rounded-2xl border border-[var(--theme-border)]"><label className="text-[10px] text-[var(--theme-muted)] font-bold mb-1 block text-center">חזרות</label><input type="text" className="bg-transparent w-full text-center font-black text-lg text-[var(--theme-text)] outline-none" value={localEx.reps} onChange={(e) => handleChange('reps', e.target.value)} /></div>
+                                <div className="bg-primary/10 p-3 rounded-2xl border border-primary/30"><label className="text-[10px] text-primary font-bold mb-1 block text-center">משקל</label><input type="text" className="bg-transparent w-full text-center font-black text-lg text-[var(--theme-text)] outline-none" value={localEx.weight} onChange={(e) => handleChange('weight', e.target.value)} /></div>
+                                <div className="bg-orange-500/10 p-3 rounded-2xl border border-orange-500/30"><label className="text-[10px] text-orange-500 font-bold mb-1 block text-center">מנוחה (ש')</label><input type="text" className="bg-transparent w-full text-center font-black text-lg text-[var(--theme-text)] outline-none" value={localEx.restTime} onChange={(e) => handleChange('restTime', e.target.value)} /></div>
                             </div>
                             
                             <div>
@@ -316,6 +323,34 @@
 
             const [calendarDate, setCalendarDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
             const [selectedDateInfo, setSelectedDateInfo] = useState(null);
+            
+            // מדינות הטיימר (הועלו לכאן כדי שמסך האימון יוכל להפעיל אותו)
+            const [timerOpen, setTimerOpen] = useState(false);
+            const [timeLeft, setTimeLeft] = useState(0);
+            const [timerActive, setTimerActive] = useState(false);
+            
+            // מדינת סימוני סטים למסך אימון נוכחי
+            const [checkedSets, setCheckedSets] = useState({});
+
+            // פונקציה חכמה להפעלת טיימר מכל מקום
+            const startTimer = (seconds) => {
+                setTimeLeft(seconds);
+                setTimerActive(true);
+                setTimerOpen(false);
+            };
+
+            // אפקט להורדת הטיימר
+            useEffect(() => {
+                let interval;
+                if (timerActive && timeLeft > 0) interval = setInterval(() => setTimeLeft(t => t - 1), 1000);
+                else if (timerActive && timeLeft === 0) { 
+                    setTimerActive(false); 
+                    clearInterval(interval); 
+                    if(navigator.vibrate) navigator.vibrate([300, 100, 300]);
+                    setTimeout(() => alert("💪 הזמן נגמר! חוזרים לעבוד."), 100);
+                }
+                return () => clearInterval(interval);
+            }, [timerActive, timeLeft]);
 
             useEffect(() => {
                 if (!categories || categories.length === 0) {
@@ -337,6 +372,50 @@
                 document.documentElement.style.setProperty('--theme-input-bg', t.inputBg);
                 document.querySelector('meta[name="theme-color"]').setAttribute('content', t.bg);
             }, [prefs]);
+            
+            // איפוס סטים במעבר בין מסכים
+            useEffect(() => {
+                if (activePage === 'home') setCheckedSets({});
+            }, [activePage]);
+
+            // נעילת גלילה (Scroll Lock) כשמודאל פתוח
+            useEffect(() => {
+                const anyModalOpen = isSettingsOpen || activeExModal || selectedDateInfo || timerOpen;
+                if (anyModalOpen) {
+                    document.body.style.overflow = 'hidden';
+                } else {
+                    document.body.style.overflow = '';
+                }
+                return () => { document.body.style.overflow = ''; };
+            }, [isSettingsOpen, activeExModal, selectedDateInfo, timerOpen]);
+
+            // פונקציה לחישוב רצף אימונים (Streak)
+            const getStreak = () => {
+                const dates = Object.keys(history).filter(d => history[d].status === 'done').sort((a,b) => new Date(b) - new Date(a));
+                if(dates.length === 0) return 0;
+                let streak = 0;
+                const today = new Date();
+                today.setHours(0,0,0,0);
+                
+                const lastWorkout = new Date(dates[0]);
+                lastWorkout.setHours(0,0,0,0);
+                
+                // אם עברו יותר מ-3 ימים מהאימון האחרון הרצף נשבר
+                const diffDays = Math.floor((today - lastWorkout) / (1000 * 60 * 60 * 24));
+                if (diffDays > 3) return 0;
+
+                streak = 1;
+                for(let i=1; i<dates.length; i++) {
+                    const d1 = new Date(dates[i-1]); d1.setHours(0,0,0,0);
+                    const d2 = new Date(dates[i]); d2.setHours(0,0,0,0);
+                    // מאפשר מרווח של עד 4 ימים גג (מנוחה) בין אימון לאימון
+                    const diff = Math.floor((d1 - d2) / (1000 * 60 * 60 * 24));
+                    if (diff <= 4) streak++;
+                    else break;
+                }
+                return streak;
+            };
+            const currentStreak = getStreak();
 
             const enterManageMode = () => { setDraftCategories(structuredClone(categories)); setManageMode(true); };
             const saveManageMode = () => { setCategories(draftCategories); setManageMode(false); };
@@ -420,9 +499,15 @@
                 return (
                     <div className="flex flex-col items-center gap-6 p-6 animate-fadeIn" dir="rtl">
                         <div className="w-full flex justify-between items-center mt-4">
-                            <div className="w-12"></div>
-                            <h1 className="text-xl font-bold text-[var(--theme-text)] italic text-center px-4 flex-1">"{MOTIVATIONS[0]}"</h1>
-                            {!manageMode && <button onClick={() => setIsSettingsOpen(true)} className="p-3 bg-[var(--theme-input-bg)] rounded-full text-[var(--theme-muted)] active:scale-95 transition-transform"><Icon name="settings" size={20} /></button>}
+                            <div className="w-16"></div>
+                            {currentStreak > 0 ? (
+                                <div className="flex items-center gap-2 bg-orange-500/10 px-4 py-1.5 rounded-xl border border-orange-500/20 text-orange-500 font-black shadow-sm">
+                                    <span>🔥</span> <span dir="ltr">{currentStreak}</span>
+                                </div>
+                            ) : (
+                                <h1 className="text-xl font-bold text-[var(--theme-text)] italic text-center px-4 flex-1">"{MOTIVATIONS[0]}"</h1>
+                            )}
+                            <div className="w-16"></div>
                         </div>
 
                         <div className="glass-panel text-center p-6 rounded-3xl w-full max-w-sm shadow-xl relative overflow-hidden">
@@ -491,63 +576,115 @@
                     setActiveExModal(null);
                 };
 
+                // חישוב נפח אימון - רק אם המשתמש הכניס מספרים לתוך הטקסט
+                const calculateVolume = () => {
+                    return category.exercises.reduce((total, ex) => {
+                        const s = parseFloat(ex.sets?.toString().replace(/[^\d.]/g, '')) || 0;
+                        const r = parseFloat(ex.reps?.toString().replace(/[^\d.]/g, '')) || 0;
+                        const w = parseFloat(ex.weight?.toString().split('/')[0].replace(/[^\d.]/g, '')) || 0;
+                        return total + (s * r * w);
+                    }, 0);
+                };
+                const totalVolume = calculateVolume();
+
                 return (
                     <div className="p-6 pb-32 animate-fadeIn" dir="rtl">
                         <div className="flex justify-between items-center mb-8">
-                            <button onClick={() => setActivePage("home")} className="flex items-center gap-2 text-[var(--theme-muted)] active:scale-95"><Icon name="chevronRight" size={24} /><span className="font-bold text-lg">חזרה</span></button>
-                            {!manageMode && <button onClick={() => setIsSettingsOpen(true)} className="p-3 bg-[var(--theme-input-bg)] rounded-full text-[var(--theme-muted)] active:scale-95 transition-transform"><Icon name="settings" size={20} /></button>}
+                            <button onClick={() => setActivePage("home")} className="flex items-center gap-2 text-[var(--theme-muted)] active:scale-95 transition-transform"><Icon name="chevronRight" size={24} /><span className="font-bold text-lg">חזרה</span></button>
+                            <div className="w-12"></div>
                         </div>
                         <div className="mb-8"><p className="text-primary text-sm font-bold mb-1 uppercase">אימון נוכחי {manageMode && "(מצב עריכה)"}</p><h2 className="text-4xl font-black text-[var(--theme-text)]">{category.name}</h2></div>
                         
                         <div className="space-y-4">
-                            {category.exercises.map((ex, index) => (
-                                <div key={ex.id} className="flex gap-2">
-                                    {manageMode && (
-                                        <div className="flex flex-col gap-1 justify-center">
-                                            <button onClick={() => {
-                                                const n = [...draftCategories];
-                                                if (index > 0) { [n[catIdx].exercises[index-1], n[catIdx].exercises[index]] = [n[catIdx].exercises[index], n[catIdx].exercises[index-1]]; setDraftCategories(n); }
-                                            }} className="p-2 bg-[var(--theme-input-bg)] rounded-lg text-[var(--theme-text)]"><Icon name="arrowUp" size={16}/></button>
-                                            <button onClick={() => {
-                                                const n = [...draftCategories];
-                                                if (index < n[catIdx].exercises.length - 1) { [n[catIdx].exercises[index+1], n[catIdx].exercises[index]] = [n[catIdx].exercises[index], n[catIdx].exercises[index+1]]; setDraftCategories(n); }
-                                            }} className="p-2 bg-[var(--theme-input-bg)] rounded-lg text-[var(--theme-text)]"><Icon name="arrowDown" size={16}/></button>
-                                        </div>
-                                    )}
-                                    <div onClick={() => manageMode ? null : setActiveExModal(ex)} className={`flex-1 glass-panel p-6 rounded-[2rem] relative overflow-hidden flex justify-between items-center transition-transform ${manageMode ? 'border-primary bg-primary/10' : 'cursor-pointer active:scale-[0.98]'}`}>
-                                        <div className="absolute top-0 right-0 w-1.5 h-full opacity-50" style={{backgroundColor: category.hex}}></div>
-                                        <div className="space-y-3 flex-1 pr-2">
+                            {category.exercises.map((ex, index) => {
+                                // חילוץ מספר לטובת ציור בועות מעקב הסטים (הטיימר האוטומטי)
+                                const parsedSetsCount = parseInt(ex.sets?.toString().replace(/[^\d]/g, '')) || 0;
+                                const currentChecked = checkedSets[ex.id] || 0;
+
+                                return (
+                                    <div key={ex.id} className="flex gap-2">
+                                        {manageMode && (
+                                            <div className="flex flex-col gap-1 justify-center">
+                                                <button onClick={() => {
+                                                    const n = [...draftCategories];
+                                                    if (index > 0) { [n[catIdx].exercises[index-1], n[catIdx].exercises[index]] = [n[catIdx].exercises[index], n[catIdx].exercises[index-1]]; setDraftCategories(n); }
+                                                }} className="p-2 bg-[var(--theme-input-bg)] rounded-lg text-[var(--theme-text)]"><Icon name="arrowUp" size={16}/></button>
+                                                <button onClick={() => {
+                                                    const n = [...draftCategories];
+                                                    if (index < n[catIdx].exercises.length - 1) { [n[catIdx].exercises[index+1], n[catIdx].exercises[index]] = [n[catIdx].exercises[index], n[catIdx].exercises[index+1]]; setDraftCategories(n); }
+                                                }} className="p-2 bg-[var(--theme-input-bg)] rounded-lg text-[var(--theme-text)]"><Icon name="arrowDown" size={16}/></button>
+                                            </div>
+                                        )}
+                                        <div onClick={() => manageMode ? null : setActiveExModal(ex)} className={`flex-1 glass-panel p-6 rounded-[2rem] relative overflow-hidden flex flex-col transition-transform ${manageMode ? 'border-primary bg-primary/10' : 'cursor-pointer active:scale-[0.98]'}`}>
+                                            <div className="absolute top-0 right-0 w-1.5 h-full opacity-50" style={{backgroundColor: category.hex}}></div>
+                                            
                                             <div className="flex justify-between items-start">
-                                                <h4 className="font-black text-xl text-[var(--theme-text)]">{ex.name}</h4>
-                                                {manageMode && (
-                                                    <div className="flex gap-2 mr-2">
-                                                        <button onClick={(e) => { e.stopPropagation(); setActiveExModal(ex); }} className="p-2 bg-blue-500/10 text-blue-500 rounded-lg"><Icon name="edit2" size={16} /></button>
-                                                        <button onClick={(e) => { e.stopPropagation(); if(confirm("למחוק תרגיל זה?")) { const n=[...draftCategories]; n[catIdx].exercises = n[catIdx].exercises.filter(item => item.id !== ex.id); setDraftCategories(n); } }} className="p-2 bg-rose-500/10 text-rose-500 rounded-lg"><Icon name="trash2" size={16} /></button>
+                                                <div className="space-y-3 flex-1 pr-2">
+                                                    <div className="flex justify-between items-start">
+                                                        <h4 className="font-black text-xl text-[var(--theme-text)]">{ex.name}</h4>
+                                                        {manageMode && (
+                                                            <div className="flex gap-2 mr-2">
+                                                                <button onClick={(e) => { e.stopPropagation(); setActiveExModal(ex); }} className="p-2 bg-blue-500/10 text-blue-500 rounded-lg"><Icon name="edit2" size={16} /></button>
+                                                                <button onClick={(e) => { e.stopPropagation(); if(confirm("למחוק תרגיל זה?")) { const n=[...draftCategories]; n[catIdx].exercises = n[catIdx].exercises.filter(item => item.id !== ex.id); setDraftCategories(n); } }} className="p-2 bg-rose-500/10 text-rose-500 rounded-lg"><Icon name="trash2" size={16} /></button>
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                )}
+                                                    <div className="flex gap-6 text-sm">
+                                                        <div className="flex flex-col"><span className="text-[10px] text-[var(--theme-muted)] font-bold uppercase">סטים</span><span className="text-[var(--theme-text)] font-black text-lg">{ex.sets}</span></div>
+                                                        <div className="flex flex-col"><span className="text-[10px] text-[var(--theme-muted)] font-bold uppercase">חזרות</span><span className="text-[var(--theme-text)] font-black text-lg">{ex.reps}</span></div>
+                                                        <div className="flex flex-col"><span className="text-[10px] font-bold uppercase" style={{color: category.hex}}>משקל</span><span className="text-[var(--theme-text)] font-black text-lg">{ex.weight} <small className="text-[10px]">ק"ג</small></span></div>
+                                                    </div>
+                                                    {ex.notes && <p className="text-xs text-[var(--theme-muted)] mt-2 bg-[var(--theme-input-bg)] p-2 rounded-lg truncate">{ex.notes}</p>}
+                                                </div>
+                                                {!manageMode && <Icon name="chevronLeft" size={20} className="text-[var(--theme-muted)] self-center" />}
                                             </div>
-                                            <div className="flex gap-6 text-sm">
-                                                <div className="flex flex-col"><span className="text-[10px] text-[var(--theme-muted)] font-bold uppercase">סטים</span><span className="text-[var(--theme-text)] font-black text-lg">{ex.sets}</span></div>
-                                                <div className="flex flex-col"><span className="text-[10px] text-[var(--theme-muted)] font-bold uppercase">חזרות</span><span className="text-[var(--theme-text)] font-black text-lg">{ex.reps}</span></div>
-                                                <div className="flex flex-col"><span className="text-[10px] font-bold uppercase" style={{color: category.hex}}>משקל</span><span className="text-[var(--theme-text)] font-black text-lg">{ex.weight} <small className="text-[10px]">ק"ג</small></span></div>
-                                            </div>
-                                            {ex.notes && <p className="text-xs text-[var(--theme-muted)] mt-2 bg-[var(--theme-input-bg)] p-2 rounded-lg truncate">{ex.notes}</p>}
+
+                                            {/* בועות סימון סטים + טיימר אוטומטי */}
+                                            {!manageMode && parsedSetsCount > 0 && parsedSetsCount <= 10 && (
+                                                <div className="flex gap-2 mt-5 pt-5 border-t border-[var(--theme-border)] justify-center flex-wrap">
+                                                    {[...Array(parsedSetsCount)].map((_, i) => {
+                                                        const isChecked = i < currentChecked;
+                                                        return (
+                                                            <button 
+                                                                key={i}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const newCount = isChecked ? i : i + 1;
+                                                                    setCheckedSets(prev => ({...prev, [ex.id]: newCount}));
+                                                                    // הפעל טיימר רק אם הסט סומן כרגע כבוצע
+                                                                    if (!isChecked && prefs.showTimer !== false) startTimer(parseInt(ex.restTime) || 60); 
+                                                                }}
+                                                                className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all ${isChecked ? 'bg-primary border-primary text-white shadow-[0_0_12px_rgba(59,130,246,0.5)]' : 'border-[var(--theme-muted)] bg-[var(--theme-input-bg)] text-transparent hover:border-primary/50'}`}
+                                                            >
+                                                                <Icon name="check" size={18} className={isChecked ? "opacity-100" : "opacity-0"} />
+                                                            </button>
+                                                        )
+                                                    })}
+                                                </div>
+                                            )}
                                         </div>
-                                        {!manageMode && <Icon name="chevronLeft" size={20} className="text-[var(--theme-muted)]" />}
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                             
                             {manageMode && (
                                 <button onClick={() => {
-                                    const newEx = { id: crypto.randomUUID(), name: "תרגיל חדש", sets: "3", reps: "10", weight: "0", historyLog: [] };
+                                    const newEx = { id: crypto.randomUUID(), name: "", sets: "3", reps: "10", weight: "0", restTime: "60", historyLog: [] };
                                     const n = [...draftCategories];
                                     n[catIdx].exercises.push(newEx);
                                     setDraftCategories(n);
                                     setActiveExModal(newEx);
-                                }} className="w-full mt-4 p-6 border-2 border-dashed border-[var(--theme-border)] rounded-[2.5rem] text-[var(--theme-muted)] font-bold flex flex-col items-center gap-2">
+                                }} className="w-full mt-4 p-6 border-2 border-dashed border-[var(--theme-border)] rounded-[2.5rem] text-[var(--theme-muted)] font-bold flex flex-col items-center gap-2 active:scale-95 transition-transform">
                                     <Icon name="plus" size={24} /> הוסף תרגיל חדש
                                 </button>
+                            )}
+
+                            {/* תצוגת נפח אימון (רק אם יש מספרים) */}
+                            {!manageMode && totalVolume > 0 && (
+                                <div className="glass-panel p-4 rounded-[1.5rem] flex justify-between items-center mt-8 border-primary/30">
+                                    <span className="text-[var(--theme-muted)] font-bold text-sm">נפח אימון משוער:</span>
+                                    <span className="text-primary font-black text-xl">{totalVolume.toLocaleString()} <small className="text-xs">ק"ג</small></span>
+                                </div>
                             )}
                         </div>
                         {activeExModal && <ExerciseQuickEditModal exercise={activeExModal} categoryHex={category.hex} onSave={updateEx} onClose={() => setActiveExModal(null)} prefs={prefs} />}
@@ -555,20 +692,32 @@
                 );
             };
 
+            // בדיקה האם יש חלון מודאל פתוח כדי להסתיר את הכפתור הצף
+            const isAnyModalOpen = manageMode || isSettingsOpen || activeExModal || selectedDateInfo || timerOpen;
+
             return (
                 <div className="min-h-screen">
                     <main className={`relative z-10 max-w-lg mx-auto min-h-screen ${manageMode ? 'pb-32' : 'pb-10'}`}>
                         {activePage === "home" ? renderHome() : renderWorkout()}
                     </main>
 
-                    {!manageMode && <WorkoutTimer showTimer={prefs.showTimer} />}
+                    {/* טיימר צף מצד שמאל */}
+                    {!manageMode && <WorkoutTimerUI showTimer={prefs.showTimer !== false} timeLeft={timeLeft} timerActive={timerActive} timerOpen={timerOpen} setTimerOpen={setTimerOpen} startTimer={startTimer} setTimerActive={setTimerActive} setTimeLeft={setTimeLeft} />}
+                    
+                    {/* כפתור הגדרות צף מצד ימין */}
+                    {!isAnyModalOpen && (
+                        <button onClick={() => setIsSettingsOpen(true)} className="fixed bottom-10 right-8 z-[50] w-16 h-16 glass-panel rounded-[1.8rem] flex items-center justify-center shadow-lg text-[var(--theme-muted)] transition-transform active:scale-95 border border-[var(--theme-border)]">
+                            <Icon name="settings" size={28} />
+                        </button>
+                    )}
+
                     <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} prefs={prefs} setPrefs={setPrefs} enterManageMode={enterManageMode} exportData={exportData} importData={importData} />
                     {selectedDateInfo && <DayInfoModal dateInfo={selectedDateInfo} onClose={() => setSelectedDateInfo(null)} history={history} categories={categories} schedule={DEFAULT_SCHEDULE} onUpdateStatus={updateRetroStatus} />}
 
                     {manageMode && (
                         <div className="fixed bottom-0 left-0 w-full p-6 glass-panel z-[150] flex gap-4 animate-slideUp border-t border-[var(--theme-border)]" dir="rtl">
-                            <button onClick={saveManageMode} className="flex-1 bg-emerald-600 text-white p-4 rounded-2xl font-black flex items-center justify-center gap-2 shadow-lg">שמור הכל</button>
-                            <button onClick={cancelManageMode} className="flex-1 bg-gray-800 text-white p-4 rounded-2xl font-black flex items-center justify-center gap-2 shadow-lg">ביטול</button>
+                            <button onClick={saveManageMode} className="flex-1 bg-emerald-600 text-white p-4 rounded-2xl font-black flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform">שמור הכל</button>
+                            <button onClick={cancelManageMode} className="flex-1 bg-gray-800 text-white p-4 rounded-2xl font-black flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform">ביטול</button>
                         </div>
                     )}
                 </div>
