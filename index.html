@@ -10,29 +10,6 @@
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#050505">
 
-    <script>
-        (function() {
-            var canvas = document.createElement('canvas');
-            canvas.width = 256; canvas.height = 256;
-            var ctx = canvas.getContext('2d');
-            ctx.fillStyle = '#000000'; ctx.fillRect(0, 0, 256, 256);
-            ctx.fillStyle = '#ffffff';
-            function fillRoundRect(x, y, w, h, r) {
-                ctx.beginPath(); ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y);
-                ctx.quadraticCurveTo(x + w, y, x + w, y + r); ctx.lineTo(x + w, y + h - r);
-                ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h); ctx.lineTo(x + r, y + h);
-                ctx.quadraticCurveTo(x, y + h, x, y + h - r); ctx.lineTo(x, y + r);
-                ctx.quadraticCurveTo(x, y, x + r, y); ctx.fill();
-            }
-            fillRoundRect(98, 113, 60, 30, 5); fillRoundRect(68, 68, 30, 120, 10);
-            fillRoundRect(158, 68, 30, 120, 10); fillRoundRect(48, 88, 20, 80, 8);
-            fillRoundRect(188, 88, 20, 80, 8);
-            var dataURL = canvas.toDataURL('image/png');
-            var appleIcon = document.createElement('link'); appleIcon.rel = 'apple-touch-icon'; appleIcon.href = dataURL; document.head.appendChild(appleIcon);
-            var standardIcon = document.createElement('link'); standardIcon.rel = 'icon'; standardIcon.type = 'image/png'; standardIcon.href = dataURL; document.head.appendChild(standardIcon);
-        })();
-    </script>
-    
     <title>האימונים שלי</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -45,13 +22,13 @@
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         body { 
             background-color: var(--theme-bg, #050505);
-            color: white; 
+            color: var(--theme-text, #ffffff); 
             -webkit-tap-highlight-color: transparent; 
             font-family: system-ui, -apple-system, sans-serif;
             overflow-x: hidden; margin: 0; min-height: 100vh;
-            transition: background-color 0.5s ease;
+            transition: background-color 0.4s ease, color 0.4s ease;
         }
-        input, select, textarea { font-size: 16px !important; }
+        input, select, textarea { font-size: 16px !important; color: var(--theme-text); }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes scaleIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
@@ -73,10 +50,8 @@
 
         // --- Themes ---
         const THEMES = {
-            dark: { name: "דארק מוד (קלאסי)", bg: "#050505", card: "rgba(17,24,39,0.8)", primary: "#3b82f6", border: "rgba(255,255,255,0.05)" },
-            saiyan: { name: "סופר סאייה", bg: "#1a1005", card: "rgba(67,20,7,0.7)", primary: "#f97316", border: "rgba(249,115,22,0.2)" },
-            ocean: { name: "גראנד ליין", bg: "#020617", card: "rgba(15,23,42,0.8)", primary: "#06b6d4", border: "rgba(6,182,212,0.2)" },
-            forest: { name: "טבע מוחלט", bg: "#021c10", card: "rgba(2,44,34,0.7)", primary: "#10b981", border: "rgba(16,185,129,0.2)" }
+            dark: { name: "דארק מוד (כהה)", bg: "#050505", card: "rgba(17,24,39,0.8)", primary: "#3b82f6", border: "rgba(255,255,255,0.05)", text: "#ffffff", muted: "#9ca3af", inputBg: "rgba(0,0,0,0.5)" },
+            light: { name: "לייט מוד (בהיר)", bg: "#f3f4f6", card: "rgba(255,255,255,0.9)", primary: "#3b82f6", border: "rgba(0,0,0,0.1)", text: "#111827", muted: "#4b5563", inputBg: "rgba(0,0,0,0.05)" }
         };
 
         const Icon = ({ name, size = 24, className = "" }) => {
@@ -143,10 +118,10 @@
                     </div>
 
                     {timerOpen && (
-                        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] flex items-end animate-fadeIn" dir="rtl">
-                            <div className="w-full glass-panel rounded-t-[3rem] p-8 pb-12 shadow-2xl animate-slideUp border-t">
-                                <div className="w-16 h-1.5 bg-gray-800 mx-auto rounded-full mb-8" onClick={() => setTimerOpen(false)}></div>
-                                <h3 className="text-center text-2xl font-black mb-8 text-white tracking-tight">זמן מנוחה</h3>
+                        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-end animate-fadeIn" dir="rtl">
+                            <div className="w-full glass-panel rounded-t-[3rem] p-8 pb-12 shadow-2xl animate-slideUp border-t border-[var(--theme-border)]">
+                                <div className="w-16 h-1.5 bg-[var(--theme-muted)] mx-auto rounded-full mb-8" onClick={() => setTimerOpen(false)}></div>
+                                <h3 className="text-center text-2xl font-black mb-8 text-[var(--theme-text)] tracking-tight">זמן מנוחה</h3>
                                 
                                 {timerActive ? (
                                     <div className="text-center mb-8">
@@ -156,14 +131,14 @@
                                 ) : (
                                     <div className="flex justify-center gap-4 mb-8 overflow-x-auto py-2 no-scrollbar">
                                         {[30, 45, 60, 90, 120].map(s => (
-                                            <button key={s} onClick={() => { setTimeLeft(s); setTimerActive(true); setTimerOpen(false); }} className="min-w-[80px] h-[80px] rounded-3xl flex flex-col items-center justify-center bg-black/50 text-gray-300 active:bg-primary active:text-white transition-colors border border-white/5">
+                                            <button key={s} onClick={() => { setTimeLeft(s); setTimerActive(true); setTimerOpen(false); }} className="min-w-[80px] h-[80px] rounded-3xl flex flex-col items-center justify-center bg-[var(--theme-input-bg)] text-[var(--theme-text)] active:bg-primary active:text-white transition-colors border border-[var(--theme-border)]">
                                                 <span className="text-3xl font-black">{s}</span>
                                                 <span className="text-[10px] font-bold uppercase mt-1">שניות</span>
                                             </button>
                                         ))}
                                     </div>
                                 )}
-                                <button onClick={() => setTimerOpen(false)} className="w-full py-4 bg-black/50 rounded-[1.5rem] font-black text-gray-400 uppercase text-xs">סגור</button>
+                                <button onClick={() => setTimerOpen(false)} className="w-full py-4 bg-[var(--theme-input-bg)] rounded-[1.5rem] font-black text-[var(--theme-muted)] uppercase text-xs border border-[var(--theme-border)]">סגור</button>
                             </div>
                         </div>
                     )}
@@ -171,55 +146,75 @@
             );
         };
 
-        // --- מסך הגדרות עם כפתור עדכון כפוי ---
+        // --- מסך מעקב יומן ---
+        const DayInfoModal = ({ dateInfo, onClose, history, categories, schedule, onUpdateStatus }) => {
+            if (!dateInfo) return null;
+            const dateObj = dateInfo.date;
+            const dateStr = dateObj.toISOString().split('T')[0];
+            const record = history[dateStr];
+            const dayOfWeek = dateObj.getDay();
+            const plannedCatId = schedule[dayOfWeek];
+            const [selectedCatId, setSelectedCatId] = useState(record?.type || plannedCatId || (categories[0]?.id || ''));
+            const hebrewDate = dateObj.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+            return (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-6 animate-fadeIn" dir="rtl">
+                    <div className="glass-panel p-6 rounded-[2.5rem] w-full max-w-sm shadow-2xl relative text-center border border-[var(--theme-border)]">
+                        <button onClick={onClose} className="absolute top-4 left-4 text-[var(--theme-muted)] p-2"><Icon name="x" size={20}/></button>
+                        <div className="w-16 h-16 bg-[var(--theme-input-bg)] rounded-full flex items-center justify-center mx-auto mb-4 border border-[var(--theme-border)]"><Icon name="calendar" size={32} className="text-primary" /></div>
+                        <h3 className="text-xl font-black text-[var(--theme-text)] mb-6">{hebrewDate}</h3>
+                        <div className="bg-[var(--theme-input-bg)] rounded-2xl p-4 mb-6 text-right border border-[var(--theme-border)]">
+                            <label className="text-xs text-[var(--theme-muted)] font-bold mb-2 block">איזה אימון מדווח?</label>
+                            <select className="w-full bg-transparent text-[var(--theme-text)] p-3 rounded-xl font-bold outline-none border border-[var(--theme-border)]" value={selectedCatId} onChange={(e) => setSelectedCatId(e.target.value)} dir="rtl">
+                                {categories.map(c => <option key={c.id} value={c.id} className="bg-gray-800 text-white">{c.name} {c.id === plannedCatId ? '(מתוכנן)' : ''}</option>)}
+                            </select>
+                        </div>
+                        <div className="flex gap-2">
+                            <button onClick={() => onUpdateStatus(dateStr, 'done', selectedCatId)} className={`flex-1 p-4 rounded-xl font-black flex flex-col items-center gap-1 ${record?.status === 'done' ? 'bg-emerald-600 text-white' : 'bg-emerald-600/20 text-emerald-500'}`}><Icon name="check" size={20} /> בוצע</button>
+                            <button onClick={() => onUpdateStatus(dateStr, 'missed', selectedCatId)} className={`flex-1 p-4 rounded-xl font-black flex flex-col items-center gap-1 ${record?.status === 'missed' ? 'bg-rose-600 text-white' : 'bg-rose-600/20 text-rose-500'}`}><Icon name="x" size={20} /> דולג</button>
+                        </div>
+                        {record && <button onClick={() => onUpdateStatus(dateStr, null, null)} className="w-full mt-3 p-3 bg-transparent border border-[var(--theme-border)] text-[var(--theme-muted)] rounded-xl font-bold">נקה רישום</button>}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- מסך הגדרות ---
         const SettingsModal = ({ isOpen, onClose, prefs, setPrefs, enterManageMode, exportData, importData }) => {
             if (!isOpen) return null;
 
-            // פונקציית עדכון גרסה כפוי
-            const forceUpdate = () => {
-                if ('serviceWorker' in navigator) {
-                    navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                        for(let registration of registrations) {
-                            registration.update();
-                        }
-                    });
-                }
-                // מוחק את זיכרון המטמון של הקוד ומרענן
-                caches.keys().then((names) => {
-                    for (let name of names) caches.delete(name);
-                }).then(() => {
-                    window.location.reload(true);
-                });
-            };
-
             return (
-                <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-[200] flex items-center justify-center p-6 animate-fadeIn" dir="rtl">
-                    <div className="glass-panel w-full max-w-sm rounded-[2.5rem] p-6 shadow-2xl relative animate-scaleIn border max-h-[90vh] overflow-y-auto no-scrollbar">
-                        <button onClick={onClose} className="absolute top-6 left-6 text-gray-400 p-2"><Icon name="x" size={24}/></button>
-                        <h2 className="text-2xl font-black text-white mb-8 pr-2">הגדרות מתקדמות</h2>
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[200] flex items-center justify-center p-6 animate-fadeIn" dir="rtl">
+                    <div className="glass-panel w-full max-w-sm rounded-[2.5rem] p-6 shadow-2xl relative animate-scaleIn border border-[var(--theme-border)] max-h-[90vh] overflow-y-auto no-scrollbar">
+                        <button onClick={onClose} className="absolute top-6 left-6 text-[var(--theme-muted)] p-2"><Icon name="x" size={24}/></button>
+                        <h2 className="text-2xl font-black text-[var(--theme-text)] mb-8 pr-2">הגדרות מתקדמות</h2>
                         
                         <div className="space-y-6">
-                            <button onClick={() => { onClose(); enterManageMode(); }} className="w-full p-4 bg-blue-500/10 border border-blue-500/30 rounded-2xl flex items-center gap-4 text-blue-400 transition-active active:scale-95">
+                            <button onClick={() => { onClose(); enterManageMode(); }} className="w-full p-4 bg-primary/10 border border-primary/30 rounded-2xl flex items-center gap-4 text-primary transition-active active:scale-95">
                                 <Icon name="edit2" size={24} />
-                                <div className="text-right flex-1"><p className="font-black text-lg">מצב עריכת אימונים</p><p className="text-xs opacity-70">הוספה, מחיקה ושינוי סדר</p></div>
+                                <div className="text-right flex-1"><p className="font-black text-lg">עריכה</p><p className="text-xs opacity-70">הוספה, מחיקה ועריכת אימונים ותרגילים</p></div>
                             </button>
 
-                            <div className="p-4 bg-black/40 rounded-2xl border border-white/5 space-y-4">
-                                <h3 className="font-bold text-gray-400 text-sm mb-2">תצוגה וממשק</h3>
+                            <div className="p-4 bg-[var(--theme-input-bg)] rounded-2xl border border-[var(--theme-border)] space-y-4">
+                                <h3 className="font-bold text-[var(--theme-muted)] text-sm mb-2">תצוגה וממשק</h3>
                                 <label className="flex items-center justify-between">
-                                    <span className="font-bold text-white">הצג לוח שנה</span>
-                                    <input type="checkbox" checked={prefs.showCalendar} onChange={e => setPrefs({...prefs, showCalendar: e.target.checked})} className="w-6 h-6 rounded-md accent-primary" />
+                                    <span className="font-bold text-[var(--theme-text)]">הצג לוח שנה</span>
+                                    <input type="checkbox" checked={prefs.showCalendar !== false} onChange={e => setPrefs({...prefs, showCalendar: e.target.checked})} className="w-6 h-6 rounded-md accent-primary" />
                                 </label>
                                 <label className="flex items-center justify-between">
-                                    <span className="font-bold text-white">הצג טיימר צף</span>
-                                    <input type="checkbox" checked={prefs.showTimer} onChange={e => setPrefs({...prefs, showTimer: e.target.checked})} className="w-6 h-6 rounded-md accent-primary" />
+                                    <span className="font-bold text-[var(--theme-text)]">הצג טיימר צף</span>
+                                    <input type="checkbox" checked={prefs.showTimer !== false} onChange={e => setPrefs({...prefs, showTimer: e.target.checked})} className="w-6 h-6 rounded-md accent-primary" />
+                                </label>
+                                <label className="flex items-center justify-between">
+                                    <span className="font-bold text-[var(--theme-text)]">הצג גרף התקדמות (בחלון תרגיל)</span>
+                                    <input type="checkbox" checked={prefs.showGraph !== false} onChange={e => setPrefs({...prefs, showGraph: e.target.checked})} className="w-6 h-6 rounded-md accent-primary" />
                                 </label>
                                 
                                 <div className="pt-2">
-                                    <span className="font-bold text-white block mb-3">ערכת נושא</span>
+                                    <span className="font-bold text-[var(--theme-text)] block mb-3">ערכת נושא</span>
                                     <div className="grid grid-cols-2 gap-2">
                                         {Object.entries(THEMES).map(([key, t]) => (
-                                            <button key={key} onClick={() => setPrefs({...prefs, theme: key})} className={`p-3 rounded-xl border text-sm font-bold transition-all ${prefs.theme === key ? 'border-primary bg-primary text-white' : 'border-white/10 text-gray-400 bg-black/50'}`}>
+                                            <button key={key} onClick={() => setPrefs({...prefs, theme: key})} className={`p-3 rounded-xl border text-sm font-bold transition-all ${prefs.theme === key ? 'border-primary bg-primary text-white' : 'border-[var(--theme-border)] text-[var(--theme-muted)] bg-transparent'}`}>
                                                 {t.name}
                                             </button>
                                         ))}
@@ -227,18 +222,17 @@
                                 </div>
                             </div>
 
-                            <div className="p-4 bg-black/40 rounded-2xl border border-white/5">
-                                <h3 className="font-bold text-gray-400 text-sm mb-4">גיבוי נתונים</h3>
+                            <div className="p-4 bg-[var(--theme-input-bg)] rounded-2xl border border-[var(--theme-border)]">
+                                <h3 className="font-bold text-[var(--theme-muted)] text-sm mb-4">גיבוי נתונים</h3>
                                 <div className="flex gap-2">
-                                    <button onClick={exportData} className="flex-1 bg-white/5 p-3 rounded-xl font-bold flex flex-col items-center gap-1 border border-white/10 text-sm text-white"><Icon name="arrowDown" size={18} /> גיבוי למכשיר</button>
-                                    <label className="flex-1 bg-white/5 p-3 rounded-xl font-bold flex flex-col items-center gap-1 border border-white/10 text-sm text-white cursor-pointer"><Icon name="arrowUp" size={18} /> שחזור מקובץ<input type="file" accept=".json" onChange={importData} className="hidden" /></label>
+                                    <button onClick={exportData} className="flex-1 bg-transparent p-3 rounded-xl font-bold flex flex-col items-center gap-1 border border-[var(--theme-border)] text-sm text-[var(--theme-text)]"><Icon name="arrowDown" size={18} /> גיבוי למכשיר</button>
+                                    <label className="flex-1 bg-transparent p-3 rounded-xl font-bold flex flex-col items-center gap-1 border border-[var(--theme-border)] text-sm text-[var(--theme-text)] cursor-pointer"><Icon name="arrowUp" size={18} /> שחזור מקובץ<input type="file" accept=".json" onChange={importData} className="hidden" /></label>
                                 </div>
                             </div>
 
-                            {/* הכפתור החדש לעדכון כפוי */}
-                            <button onClick={forceUpdate} className="w-full p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl flex items-center justify-center gap-2 text-rose-400 active:scale-95 transition-transform mt-4">
+                            <button onClick={() => window.location.reload(true)} className="w-full p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl flex items-center justify-center gap-2 text-rose-500 active:scale-95 transition-transform mt-4">
                                 <Icon name="zap" size={20} />
-                                <span className="font-bold">כפה רענון גרסה מהשרת</span>
+                                <span className="font-bold">כפה רענון גרסה</span>
                             </button>
                         </div>
                     </div>
@@ -247,56 +241,58 @@
         };
 
         // --- חלון עריכה מהירה לתרגיל (Quick Edit & Graph) ---
-        const ExerciseQuickEditModal = ({ exercise, categoryHex, onSave, onClose }) => {
-            const [localEx, setLocalEx] = useState({ ...exercise, notes: exercise.notes || "", historyLog: exercise.historyLog || [] });
+        const ExerciseQuickEditModal = ({ exercise, categoryHex, onSave, onClose, prefs }) => {
+            const [localEx, setLocalEx] = useState({ ...exercise, sets: exercise.sets || "", reps: exercise.reps || "", notes: exercise.notes || "", historyLog: exercise.historyLog || [] });
             const handleChange = (f, v) => setLocalEx(p => ({ ...p, [f]: v }));
             
             const logCurrentWeight = () => {
                 if(!localEx.weight || localEx.weight === "-") return;
-                const newLog = [...localEx.historyLog, { date: new Date().toLocaleDateString('he-IL').substring(0,5), weight: localEx.weight }].slice(-6); // Keep last 6
+                const newLog = [...localEx.historyLog, { date: new Date().toLocaleDateString('he-IL').substring(0,5), weight: localEx.weight }].slice(-6);
                 handleChange('historyLog', newLog);
             };
 
             const maxWeight = Math.max(...localEx.historyLog.map(l => parseFloat(l.weight.split('/')[0]) || 0), 10);
 
             return (
-                <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-[200] flex items-center justify-center p-4 animate-fadeIn" dir="rtl">
-                    <div className="glass-panel w-full max-w-sm rounded-[2.5rem] p-6 shadow-2xl relative animate-scaleIn border border-white/10 max-h-[90vh] overflow-y-auto no-scrollbar">
-                        <button onClick={onClose} className="absolute top-6 left-6 text-gray-400 p-2"><Icon name="x" size={24}/></button>
-                        <h3 className="text-2xl font-black mb-6 text-white pr-2 border-r-4" style={{borderColor: categoryHex}}>{localEx.name}</h3>
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[200] flex items-center justify-center p-4 animate-fadeIn" dir="rtl">
+                    <div className="glass-panel w-full max-w-sm rounded-[2.5rem] p-6 shadow-2xl relative animate-scaleIn border border-[var(--theme-border)] max-h-[90vh] overflow-y-auto no-scrollbar">
+                        <button onClick={onClose} className="absolute top-6 left-6 text-[var(--theme-muted)] p-2"><Icon name="x" size={24}/></button>
+                        <h3 className="text-2xl font-black mb-6 text-[var(--theme-text)] pr-2 border-r-4" style={{borderColor: categoryHex}}>{localEx.name}</h3>
                         
                         <div className="space-y-5">
                             <div className="grid grid-cols-3 gap-3">
-                                <div className="bg-black/50 p-3 rounded-2xl border border-white/5"><label className="text-[10px] text-gray-500 font-bold mb-1 block text-center">סטים</label><input type="number" className="bg-transparent w-full text-center font-black text-xl text-white outline-none" value={localEx.sets} onChange={(e) => handleChange('sets', e.target.value)} /></div>
-                                <div className="bg-black/50 p-3 rounded-2xl border border-white/5"><label className="text-[10px] text-gray-500 font-bold mb-1 block text-center">חזרות</label><input type="number" className="bg-transparent w-full text-center font-black text-xl text-white outline-none" value={localEx.reps} onChange={(e) => handleChange('reps', e.target.value)} /></div>
-                                <div className="bg-primary/10 p-3 rounded-2xl border border-primary/30"><label className="text-[10px] text-primary font-bold mb-1 block text-center">משקל</label><input className="bg-transparent w-full text-center font-black text-xl text-white outline-none" value={localEx.weight} onChange={(e) => handleChange('weight', e.target.value)} /></div>
+                                <div className="bg-[var(--theme-input-bg)] p-3 rounded-2xl border border-[var(--theme-border)]"><label className="text-[10px] text-[var(--theme-muted)] font-bold mb-1 block text-center">סטים</label><input type="text" className="bg-transparent w-full text-center font-black text-xl text-[var(--theme-text)] outline-none" value={localEx.sets} onChange={(e) => handleChange('sets', e.target.value)} /></div>
+                                <div className="bg-[var(--theme-input-bg)] p-3 rounded-2xl border border-[var(--theme-border)]"><label className="text-[10px] text-[var(--theme-muted)] font-bold mb-1 block text-center">חזרות</label><input type="text" className="bg-transparent w-full text-center font-black text-xl text-[var(--theme-text)] outline-none" value={localEx.reps} onChange={(e) => handleChange('reps', e.target.value)} /></div>
+                                <div className="bg-primary/10 p-3 rounded-2xl border border-primary/30"><label className="text-[10px] text-primary font-bold mb-1 block text-center">משקל</label><input type="text" className="bg-transparent w-full text-center font-black text-xl text-[var(--theme-text)] outline-none" value={localEx.weight} onChange={(e) => handleChange('weight', e.target.value)} /></div>
                             </div>
                             
                             <div>
-                                <label className="text-xs text-gray-400 font-bold mb-2 block">הערות / וריאציות (מכונה, חופשי וכו')</label>
-                                <textarea className="w-full bg-black/50 p-4 rounded-2xl border border-white/5 text-white outline-none min-h-[80px]" placeholder="היה קל הפעם..." value={localEx.notes} onChange={(e) => handleChange('notes', e.target.value)}></textarea>
+                                <label className="text-xs text-[var(--theme-muted)] font-bold mb-2 block">הערות / וריאציות (מכונה, חופשי וכו')</label>
+                                <textarea className="w-full bg-[var(--theme-input-bg)] p-4 rounded-2xl border border-[var(--theme-border)] text-[var(--theme-text)] outline-none min-h-[80px]" placeholder="היה קל הפעם..." value={localEx.notes} onChange={(e) => handleChange('notes', e.target.value)}></textarea>
                             </div>
 
-                            <div className="bg-black/30 p-4 rounded-2xl border border-white/5">
-                                <div className="flex justify-between items-center mb-4">
-                                    <h4 className="font-bold text-sm flex items-center gap-2"><Icon name="barChart" size={16} className="text-primary"/> התקדמות משקל</h4>
-                                    <button onClick={logCurrentWeight} className="text-[10px] font-bold bg-white/10 px-3 py-1.5 rounded-lg active:bg-primary transition-colors">תעד עכשיו</button>
-                                </div>
-                                {localEx.historyLog.length > 0 ? (
-                                    <div className="flex items-end gap-2 h-24 pt-4 border-b border-white/10">
-                                        {localEx.historyLog.map((log, i) => {
-                                            const wNum = parseFloat(log.weight.split('/')[0]) || 0;
-                                            const heightPct = Math.max((wNum / maxWeight) * 100, 10);
-                                            return (
-                                                <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                                                    <div className="w-full bg-primary/80 rounded-t-sm transition-all" style={{height: `${heightPct}%`}}></div>
-                                                    <span className="text-[8px] text-gray-500">{log.date}</span>
-                                                </div>
-                                            );
-                                        })}
+                            {prefs.showGraph !== false && (
+                                <div className="bg-[var(--theme-input-bg)] p-4 rounded-2xl border border-[var(--theme-border)]">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h4 className="font-bold text-sm text-[var(--theme-text)] flex items-center gap-2"><Icon name="barChart" size={16} className="text-primary"/> התקדמות משקל</h4>
+                                        <button onClick={logCurrentWeight} className="text-[10px] font-bold bg-primary/20 text-primary border border-primary/20 px-3 py-1.5 rounded-lg active:bg-primary active:text-white transition-colors">תעד עכשיו</button>
                                     </div>
-                                ) : <p className="text-xs text-gray-600 text-center py-4">אין נתונים עדיין.</p>}
-                            </div>
+                                    {localEx.historyLog.length > 0 ? (
+                                        <div className="flex items-end gap-2 h-24 pt-4 border-b border-[var(--theme-border)]">
+                                            {localEx.historyLog.map((log, i) => {
+                                                const wNum = parseFloat(log.weight.split('/')[0]) || 0;
+                                                const heightPct = Math.max((wNum / maxWeight) * 100, 10);
+                                                return (
+                                                    <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                                                        <div className="w-full bg-primary/80 rounded-t-sm transition-all" style={{height: `${heightPct}%`}}></div>
+                                                        <span className="text-[8px] text-[var(--theme-muted)]">{log.date}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : <p className="text-xs text-[var(--theme-muted)] text-center py-4">אין נתונים עדיין.</p>}
+                                </div>
+                            )}
 
                             <button onClick={() => onSave(localEx)} className="w-full bg-primary p-4 rounded-2xl font-black text-white text-lg active:scale-95 transition-transform shadow-lg">שמור תרגיל</button>
                         </div>
@@ -309,24 +305,24 @@
         function App() {
             const [activePage, setActivePage] = useState("home"); 
             
-            // טעינת נתונים - v16 כדי לשמור על האימונים הקיימים שלך
             const [categories, setCategories] = useState(() => JSON.parse(localStorage.getItem('workout_v16_data')) || []);
             const [history, setHistory] = useState(() => JSON.parse(localStorage.getItem('workout_v16_history')) || {});
-            const [prefs, setPrefs] = useState(() => JSON.parse(localStorage.getItem('workout_v17_prefs')) || { showCalendar: true, showTimer: true, theme: 'dark' });
+            const [prefs, setPrefs] = useState(() => JSON.parse(localStorage.getItem('workout_v17_prefs')) || { showCalendar: true, showTimer: true, showGraph: true, theme: 'dark' });
             
             const [manageMode, setManageMode] = useState(false);
             const [draftCategories, setDraftCategories] = useState(null);
             const [isSettingsOpen, setIsSettingsOpen] = useState(false);
             const [activeExModal, setActiveExModal] = useState(null);
 
-            // אתחול דאטה אם ריק - עכשיו רק אם באמת אין כלום
+            const [calendarDate, setCalendarDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+            const [selectedDateInfo, setSelectedDateInfo] = useState(null);
+
             useEffect(() => {
                 if (!categories || categories.length === 0) {
-                     setCategories([{ id: 'c1', name: "אימון דוגמה", hex: "#3b82f6", icon: "dumbbell", exercises: [{ id: 'ex1', name: "לחיצת חזה", sets: 3, reps: 10, weight: "20" }] }]);
+                     setCategories([{ id: 'c1', name: "אימון דוגמה", hex: "#3b82f6", icon: "dumbbell", exercises: [{ id: 'ex1', name: "לחיצת חזה", sets: "3", reps: "10", weight: "20" }] }]);
                 }
             }, []);
 
-            // שמירות לוקאליות והחלת ערכת נושא
             useEffect(() => { localStorage.setItem('workout_v16_data', JSON.stringify(categories)); }, [categories]);
             useEffect(() => { localStorage.setItem('workout_v16_history', JSON.stringify(history)); }, [history]);
             useEffect(() => { 
@@ -336,6 +332,9 @@
                 document.documentElement.style.setProperty('--theme-card', t.card);
                 document.documentElement.style.setProperty('--theme-primary', t.primary);
                 document.documentElement.style.setProperty('--theme-border', t.border);
+                document.documentElement.style.setProperty('--theme-text', t.text);
+                document.documentElement.style.setProperty('--theme-muted', t.muted);
+                document.documentElement.style.setProperty('--theme-input-bg', t.inputBg);
                 document.querySelector('meta[name="theme-color"]').setAttribute('content', t.bg);
             }, [prefs]);
 
@@ -354,13 +353,64 @@
                 reader.onload = (e) => {
                     try {
                         const imp = JSON.parse(e.target.result);
-                        if (imp.categories && imp.history) { setCategories(imp.categories); setHistory(imp.history); if(imp.prefs) setPrefs(imp.prefs); alert("הנתונים שוחזרו! רענן אפליקציה."); }
+                        if (imp.categories && imp.history) { setCategories(imp.categories); setHistory(imp.history); if(imp.prefs) setPrefs(imp.prefs); alert("הנתונים שוחזרו! האפליקציה תתרענן."); window.location.reload(); }
                     } catch (error) { alert("שגיאה בקריאת הקובץ."); }
                 };
                 reader.readAsText(file);
             };
 
-            // Render Home
+            const updateRetroStatus = (dateStr, status, categoryId) => {
+                setHistory(prev => {
+                    const newHist = { ...prev };
+                    if (!status) delete newHist[dateStr];
+                    else newHist[dateStr] = { type: categoryId, status: status };
+                    return newHist;
+                });
+                setSelectedDateInfo(null);
+            };
+
+            const renderCalendarView = () => {
+                const daysInMonth = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 0).getDate();
+                const firstDay = new Date(calendarDate.getFullYear(), calendarDate.getMonth(), 1).getDay();
+                const monthName = calendarDate.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' });
+                const today = new Date();
+
+                return (
+                    <div className="w-full max-w-sm mt-4 glass-panel p-6 rounded-[2.5rem] shadow-xl" dir="rtl">
+                        <div className="flex justify-between items-center mb-6 px-2">
+                            <button onClick={() => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1))} className="p-2 bg-[var(--theme-input-bg)] rounded-full text-[var(--theme-text)]"><Icon name="chevronRight" size={16}/></button>
+                            <h3 className="font-black text-lg text-[var(--theme-text)]">{monthName}</h3>
+                            <button onClick={() => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1))} className="p-2 bg-[var(--theme-input-bg)] rounded-full text-[var(--theme-text)]"><Icon name="chevronLeft" size={16}/></button>
+                        </div>
+                        <div className="grid grid-cols-7 gap-2 text-center">
+                            {['א','ב','ג','ד','ה','ו','ש'].map(d => <div key={d} className="text-[11px] font-bold text-[var(--theme-muted)] uppercase">{d}</div>)}
+                            {[...Array(firstDay)].map((_, i) => <div key={`empty-${i}`} />)}
+                            {[...Array(daysInMonth)].map((_, i) => {
+                                const dNum = i + 1;
+                                const cellD = new Date(calendarDate.getFullYear(), calendarDate.getMonth(), dNum);
+                                const dStr = cellD.toISOString().split('T')[0];
+                                const record = history[dStr];
+                                const planned = categories.find(c => c.id === DEFAULT_SCHEDULE[cellD.getDay()]);
+                                let cellStyle = "bg-[var(--theme-input-bg)] text-[var(--theme-muted)] cursor-pointer transition-all";
+                                let IconComp = null; let finalBg = null;
+                                if (record) {
+                                    finalBg = categories.find(c => c.id === record.type)?.hex || planned?.hex || "var(--theme-primary)";
+                                    cellStyle = record.status === 'done' ? "text-white scale-105 shadow-md" : "bg-rose-500 text-white";
+                                    IconComp = record.status === 'done' ? <Icon name="check" size={12} className="mt-0.5" /> : <Icon name="x" size={12} className="mt-0.5" />;
+                                } else if (dNum === today.getDate() && calendarDate.getMonth() === today.getMonth() && calendarDate.getFullYear() === today.getFullYear()) {
+                                    cellStyle = "border border-primary text-primary font-black";
+                                }
+                                return (
+                                    <div key={dNum} onClick={() => setSelectedDateInfo({ date: cellD })} style={finalBg ? { backgroundColor: finalBg } : {}} className={`aspect-square flex flex-col items-center justify-center rounded-xl text-[12px] font-bold ${cellStyle}`}>
+                                        {dNum} {IconComp ? IconComp : (planned && <div style={{ backgroundColor: planned.hex }} className="w-1.5 h-1.5 rounded-full mt-1 opacity-80" />)}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                );
+            };
+
             const renderHome = () => {
                 const today = new Date(); const todayKey = today.toISOString().split('T')[0];
                 const dayName = today.toLocaleDateString('he-IL', { weekday: 'long' });
@@ -371,13 +421,13 @@
                     <div className="flex flex-col items-center gap-6 p-6 animate-fadeIn" dir="rtl">
                         <div className="w-full flex justify-between items-center mt-4">
                             <div className="w-12"></div>
-                            <h1 className="text-xl font-bold text-white italic text-center px-4 flex-1">"{MOTIVATIONS[0]}"</h1>
-                            {!manageMode && <button onClick={() => setIsSettingsOpen(true)} className="p-3 bg-white/5 rounded-full text-gray-400 active:scale-95 transition-transform"><Icon name="settings" size={20} /></button>}
+                            <h1 className="text-xl font-bold text-[var(--theme-text)] italic text-center px-4 flex-1">"{MOTIVATIONS[0]}"</h1>
+                            {!manageMode && <button onClick={() => setIsSettingsOpen(true)} className="p-3 bg-[var(--theme-input-bg)] rounded-full text-[var(--theme-muted)] active:scale-95 transition-transform"><Icon name="settings" size={20} /></button>}
                         </div>
 
                         <div className="glass-panel text-center p-6 rounded-3xl w-full max-w-sm shadow-xl relative overflow-hidden">
                             <div className="absolute top-0 left-0 w-full h-1 bg-primary"></div>
-                            <p className="text-gray-500 text-xs mb-1 uppercase tracking-widest font-bold">היום {dayName}</p>
+                            <p className="text-[var(--theme-muted)] text-xs mb-1 uppercase tracking-widest font-bold">היום {dayName}</p>
                             <p className="text-2xl font-black text-primary">אימון: {plannedCategory?.name || "מנוחה"}</p>
                         </div>
 
@@ -386,18 +436,23 @@
                                 <div key={cat.id} className="relative flex items-center gap-2">
                                     {manageMode && (
                                         <div className="flex flex-col gap-1">
-                                            <button onClick={() => {const n=[...draftCategories]; if(index>0) [n[index-1],n[index]]=[n[index],n[index-1]]; setDraftCategories(n);}} className="p-2 bg-white/5 rounded-lg"><Icon name="arrowUp" size={16}/></button>
-                                            <button onClick={() => {const n=[...draftCategories]; if(index<n.length-1) [n[index+1],n[index]]=[n[index],n[index+1]]; setDraftCategories(n);}} className="p-2 bg-white/5 rounded-lg"><Icon name="arrowDown" size={16}/></button>
+                                            <button onClick={() => {const n=[...draftCategories]; if(index>0) [n[index-1],n[index]]=[n[index],n[index-1]]; setDraftCategories(n);}} className="p-2 bg-[var(--theme-input-bg)] rounded-lg text-[var(--theme-text)]"><Icon name="arrowUp" size={16}/></button>
+                                            <button onClick={() => {const n=[...draftCategories]; if(index<n.length-1) [n[index+1],n[index]]=[n[index],n[index+1]]; setDraftCategories(n);}} className="p-2 bg-[var(--theme-input-bg)] rounded-lg text-[var(--theme-text)]"><Icon name="arrowDown" size={16}/></button>
                                         </div>
                                     )}
-                                    <button onClick={() => manageMode ? null : setActivePage(cat.id)} className={`flex-1 flex items-center justify-between p-6 rounded-[2.5rem] transition-all shadow-lg ${manageMode ? 'border-primary bg-primary/10' : 'glass-panel active:scale-95'}`}>
-                                        {manageMode ? <Icon name="edit2" size={20} className="text-primary" /> : <Icon name="arrowLeft" size={20} className="text-white/40" />}
-                                        <div className="flex items-center gap-5 text-white"><span className="text-xl font-black">{cat.name}</span><span className="p-3 bg-black/40 rounded-2xl" style={{color: cat.hex}}><Icon name={cat.icon} size={24} /></span></div>
+                                    <button onClick={() => manageMode ? setActivePage(cat.id) : setActivePage(cat.id)} className={`flex-1 flex items-center justify-between p-6 rounded-[2.5rem] transition-all shadow-lg ${manageMode ? 'border-primary bg-primary/10' : 'glass-panel active:scale-95'}`}>
+                                        <Icon name={manageMode ? "edit2" : "arrowLeft"} size={20} className={manageMode ? "text-primary" : "text-[var(--theme-muted)]"} />
+                                        <div className="flex items-center gap-5 text-[var(--theme-text)]"><span className="text-xl font-black">{cat.name}</span><span className="p-3 bg-black/20 rounded-2xl" style={{color: cat.hex}}><Icon name={cat.icon} size={24} /></span></div>
                                     </button>
                                     {manageMode && (
-                                        <button onClick={() => { if(confirm(`למחוק את ${cat.name}?`)) { const n=[...draftCategories]; n.splice(index,1); setDraftCategories(n); } }} className="p-4 bg-rose-500/10 text-rose-500 rounded-2xl h-full ml-1">
-                                            <Icon name="trash2" size={20}/>
-                                        </button>
+                                        <>
+                                            <button onClick={() => { const name = prompt("שם חדש לאימון:", cat.name); if(name){ const n=[...draftCategories]; n[index].name=name; setDraftCategories(n); } }} className="p-4 bg-blue-500/10 text-blue-500 rounded-2xl h-full ml-1">
+                                                <Icon name="edit2" size={20}/>
+                                            </button>
+                                            <button onClick={() => { if(confirm(`למחוק את האימון ${cat.name}?`)) { const n=[...draftCategories]; n.splice(index,1); setDraftCategories(n); } }} className="p-4 bg-rose-500/10 text-rose-500 rounded-2xl h-full ml-1">
+                                                <Icon name="trash2" size={20}/>
+                                            </button>
+                                        </>
                                     )}
                                 </div>
                             ))}
@@ -405,60 +460,97 @@
                                 <button onClick={() => {
                                     const name = prompt("שם האימון החדש:");
                                     if(name) setDraftCategories([...draftCategories, { id: crypto.randomUUID(), name, hex: "#a855f7", icon: "dumbbell", exercises: [] }]);
-                                }} className="w-full p-6 border-2 border-dashed border-white/10 rounded-[2.5rem] text-gray-400 font-bold flex flex-col items-center gap-2">
+                                }} className="w-full p-6 border-2 border-dashed border-[var(--theme-border)] rounded-[2.5rem] text-[var(--theme-muted)] font-bold flex flex-col items-center gap-2">
                                     <Icon name="plus" size={24} /> הוסף אימון חדש
                                 </button>
                             )}
                         </div>
 
-                        {prefs.showCalendar && !manageMode && (
-                            <div className="w-full max-w-sm mt-4 glass-panel p-6 rounded-[2.5rem] shadow-xl text-center">
-                                <h3 className="font-bold text-gray-400 mb-2">יומן אימונים</h3>
-                                <p className="text-xs text-gray-500">היומן יושב כאן... (קוד היומן צומצם לתצוגה חלקה)</p>
-                            </div>
-                        )}
+                        {prefs.showCalendar !== false && !manageMode && renderCalendarView()}
                     </div>
                 );
             };
 
-            // Render Workout Detail
             const renderWorkout = () => {
-                const category = categories.find(c => c.id === activePage);
+                const displayCategories = manageMode ? draftCategories : categories;
+                const category = displayCategories.find(c => c.id === activePage);
+                const catIdx = displayCategories.findIndex(c => c.id === activePage);
+
                 if(!category) return null;
+                
                 const updateEx = (newEx) => {
-                    const newCats = [...categories];
-                    const catIdx = newCats.findIndex(c => c.id === activePage);
-                    newCats[catIdx].exercises = newCats[catIdx].exercises.map(e => e.id === newEx.id ? newEx : e);
-                    setCategories(newCats);
+                    if (manageMode) {
+                        const newCats = [...draftCategories];
+                        newCats[catIdx].exercises = newCats[catIdx].exercises.map(e => e.id === newEx.id ? newEx : e);
+                        setDraftCategories(newCats);
+                    } else {
+                        const newCats = [...categories];
+                        newCats[catIdx].exercises = newCats[catIdx].exercises.map(e => e.id === newEx.id ? newEx : e);
+                        setCategories(newCats);
+                    }
                     setActiveExModal(null);
                 };
 
                 return (
                     <div className="p-6 pb-32 animate-fadeIn" dir="rtl">
                         <div className="flex justify-between items-center mb-8">
-                            <button onClick={() => setActivePage("home")} className="flex items-center gap-2 text-gray-400 active:scale-95"><Icon name="chevronRight" size={24} /><span className="font-bold text-lg">חזרה לראשי</span></button>
-                            {!manageMode && <button onClick={() => setIsSettingsOpen(true)} className="p-3 bg-white/5 rounded-full text-gray-400 active:scale-95 transition-transform"><Icon name="settings" size={20} /></button>}
+                            <button onClick={() => setActivePage("home")} className="flex items-center gap-2 text-[var(--theme-muted)] active:scale-95"><Icon name="chevronRight" size={24} /><span className="font-bold text-lg">חזרה</span></button>
+                            {!manageMode && <button onClick={() => setIsSettingsOpen(true)} className="p-3 bg-[var(--theme-input-bg)] rounded-full text-[var(--theme-muted)] active:scale-95 transition-transform"><Icon name="settings" size={20} /></button>}
                         </div>
-                        <div className="mb-8"><p className="text-primary text-sm font-bold mb-1 uppercase">אימון נוכחי</p><h2 className="text-4xl font-black text-white">{category.name}</h2></div>
+                        <div className="mb-8"><p className="text-primary text-sm font-bold mb-1 uppercase">אימון נוכחי {manageMode && "(מצב עריכה)"}</p><h2 className="text-4xl font-black text-[var(--theme-text)]">{category.name}</h2></div>
                         
                         <div className="space-y-4">
-                            {category.exercises.map((ex) => (
-                                <div key={ex.id} onClick={() => setActiveExModal(ex)} className="glass-panel p-6 rounded-[2rem] relative overflow-hidden flex justify-between items-center cursor-pointer active:scale-[0.98] transition-transform">
-                                    <div className="absolute top-0 right-0 w-1.5 h-full opacity-50" style={{backgroundColor: category.hex}}></div>
-                                    <div className="space-y-3 flex-1 pr-2">
-                                        <h4 className="font-black text-xl text-white/90">{ex.name}</h4>
-                                        <div className="flex gap-6 text-sm">
-                                            <div className="flex flex-col"><span className="text-[10px] text-gray-500 font-bold uppercase">סטים</span><span className="text-white font-black text-lg">{ex.sets}</span></div>
-                                            <div className="flex flex-col"><span className="text-[10px] text-gray-500 font-bold uppercase">חזרות</span><span className="text-white font-black text-lg">{ex.reps}</span></div>
-                                            <div className="flex flex-col"><span className="text-[10px] font-bold uppercase" style={{color: category.hex}}>משקל</span><span className="text-white font-black text-lg">{ex.weight} <small className="text-[10px]">ק"ג</small></span></div>
+                            {category.exercises.map((ex, index) => (
+                                <div key={ex.id} className="flex gap-2">
+                                    {manageMode && (
+                                        <div className="flex flex-col gap-1 justify-center">
+                                            <button onClick={() => {
+                                                const n = [...draftCategories];
+                                                if (index > 0) { [n[catIdx].exercises[index-1], n[catIdx].exercises[index]] = [n[catIdx].exercises[index], n[catIdx].exercises[index-1]]; setDraftCategories(n); }
+                                            }} className="p-2 bg-[var(--theme-input-bg)] rounded-lg text-[var(--theme-text)]"><Icon name="arrowUp" size={16}/></button>
+                                            <button onClick={() => {
+                                                const n = [...draftCategories];
+                                                if (index < n[catIdx].exercises.length - 1) { [n[catIdx].exercises[index+1], n[catIdx].exercises[index]] = [n[catIdx].exercises[index], n[catIdx].exercises[index+1]]; setDraftCategories(n); }
+                                            }} className="p-2 bg-[var(--theme-input-bg)] rounded-lg text-[var(--theme-text)]"><Icon name="arrowDown" size={16}/></button>
                                         </div>
-                                        {ex.notes && <p className="text-xs text-gray-400 mt-2 bg-white/5 p-2 rounded-lg truncate">{ex.notes}</p>}
+                                    )}
+                                    <div onClick={() => manageMode ? null : setActiveExModal(ex)} className={`flex-1 glass-panel p-6 rounded-[2rem] relative overflow-hidden flex justify-between items-center transition-transform ${manageMode ? 'border-primary bg-primary/10' : 'cursor-pointer active:scale-[0.98]'}`}>
+                                        <div className="absolute top-0 right-0 w-1.5 h-full opacity-50" style={{backgroundColor: category.hex}}></div>
+                                        <div className="space-y-3 flex-1 pr-2">
+                                            <div className="flex justify-between items-start">
+                                                <h4 className="font-black text-xl text-[var(--theme-text)]">{ex.name}</h4>
+                                                {manageMode && (
+                                                    <div className="flex gap-2 mr-2">
+                                                        <button onClick={(e) => { e.stopPropagation(); setActiveExModal(ex); }} className="p-2 bg-blue-500/10 text-blue-500 rounded-lg"><Icon name="edit2" size={16} /></button>
+                                                        <button onClick={(e) => { e.stopPropagation(); if(confirm("למחוק תרגיל זה?")) { const n=[...draftCategories]; n[catIdx].exercises = n[catIdx].exercises.filter(item => item.id !== ex.id); setDraftCategories(n); } }} className="p-2 bg-rose-500/10 text-rose-500 rounded-lg"><Icon name="trash2" size={16} /></button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex gap-6 text-sm">
+                                                <div className="flex flex-col"><span className="text-[10px] text-[var(--theme-muted)] font-bold uppercase">סטים</span><span className="text-[var(--theme-text)] font-black text-lg">{ex.sets}</span></div>
+                                                <div className="flex flex-col"><span className="text-[10px] text-[var(--theme-muted)] font-bold uppercase">חזרות</span><span className="text-[var(--theme-text)] font-black text-lg">{ex.reps}</span></div>
+                                                <div className="flex flex-col"><span className="text-[10px] font-bold uppercase" style={{color: category.hex}}>משקל</span><span className="text-[var(--theme-text)] font-black text-lg">{ex.weight} <small className="text-[10px]">ק"ג</small></span></div>
+                                            </div>
+                                            {ex.notes && <p className="text-xs text-[var(--theme-muted)] mt-2 bg-[var(--theme-input-bg)] p-2 rounded-lg truncate">{ex.notes}</p>}
+                                        </div>
+                                        {!manageMode && <Icon name="chevronLeft" size={20} className="text-[var(--theme-muted)]" />}
                                     </div>
-                                    <Icon name="chevronLeft" size={20} className="text-gray-600" />
                                 </div>
                             ))}
+                            
+                            {manageMode && (
+                                <button onClick={() => {
+                                    const newEx = { id: crypto.randomUUID(), name: "תרגיל חדש", sets: "3", reps: "10", weight: "0", historyLog: [] };
+                                    const n = [...draftCategories];
+                                    n[catIdx].exercises.push(newEx);
+                                    setDraftCategories(n);
+                                    setActiveExModal(newEx);
+                                }} className="w-full mt-4 p-6 border-2 border-dashed border-[var(--theme-border)] rounded-[2.5rem] text-[var(--theme-muted)] font-bold flex flex-col items-center gap-2">
+                                    <Icon name="plus" size={24} /> הוסף תרגיל חדש
+                                </button>
+                            )}
                         </div>
-                        {activeExModal && <ExerciseQuickEditModal exercise={activeExModal} categoryHex={category.hex} onSave={updateEx} onClose={() => setActiveExModal(null)} />}
+                        {activeExModal && <ExerciseQuickEditModal exercise={activeExModal} categoryHex={category.hex} onSave={updateEx} onClose={() => setActiveExModal(null)} prefs={prefs} />}
                     </div>
                 );
             };
@@ -471,9 +563,10 @@
 
                     {!manageMode && <WorkoutTimer showTimer={prefs.showTimer} />}
                     <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} prefs={prefs} setPrefs={setPrefs} enterManageMode={enterManageMode} exportData={exportData} importData={importData} />
-                    
+                    {selectedDateInfo && <DayInfoModal dateInfo={selectedDateInfo} onClose={() => setSelectedDateInfo(null)} history={history} categories={categories} schedule={DEFAULT_SCHEDULE} onUpdateStatus={updateRetroStatus} />}
+
                     {manageMode && (
-                        <div className="fixed bottom-0 left-0 w-full p-6 glass-panel z-[150] flex gap-4 animate-slideUp border-t" dir="rtl">
+                        <div className="fixed bottom-0 left-0 w-full p-6 glass-panel z-[150] flex gap-4 animate-slideUp border-t border-[var(--theme-border)]" dir="rtl">
                             <button onClick={saveManageMode} className="flex-1 bg-emerald-600 text-white p-4 rounded-2xl font-black flex items-center justify-center gap-2 shadow-lg">שמור הכל</button>
                             <button onClick={cancelManageMode} className="flex-1 bg-gray-800 text-white p-4 rounded-2xl font-black flex items-center justify-center gap-2 shadow-lg">ביטול</button>
                         </div>
@@ -483,9 +576,6 @@
         }
 
         ReactDOM.createRoot(document.getElementById('root')).render(<App />);
-    </script>
-    <script>
-        if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js'); }); }
     </script>
 </body>
 </html>
