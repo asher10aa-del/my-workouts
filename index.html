@@ -69,7 +69,7 @@
     .slide-down { animation: slideDown 0.3s ease-out forwards; }
     .glow-pulse { animation: glow 2s ease-in-out infinite; }
     
-    /* Button Press Effect (Fixed) */
+    /* Button Press Effect */
     .btn-press { transition: transform 0.1s ease, filter 0.2s ease; cursor: pointer; }
     .btn-press:active { transform: scale(0.95); filter: brightness(0.9); }
     
@@ -167,8 +167,8 @@ const DEF_CATS = [
 const DEF_SCHED = {0:'c1', 1:'c3', 2:null, 3:'c2', 4:'c3', 5:null, 6:'c4'};
 
 /* ── AUDIO SUBSYSTEM ── */
-// Fixed: Restored logical spacing for ternary operators to prevent parsing crashes.
-const playBeep = useCallback((done = false) => {
+// תוקן: פונקציה גלובלית רגילה כדי לא לקרוס עם שגיאת React Hooks
+const playBeep = (done = false) => {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const freqs = done ? [523, 659, 784] : [880, 880];
@@ -182,7 +182,7 @@ const playBeep = useCallback((done = false) => {
       o.start(t); o.stop(t + (done ? 0.35 : 0.15));
     });
   } catch(e) { console.warn("Audio Context blocked", e); }
-}, []);
+};
 
 /* ── ICONS LIBRARY ── */
 const ICONS = {
@@ -375,7 +375,7 @@ function App() {
       playBeep(true);
     }
     return () => clearInterval(iv);
-  }, [timerOn, timeLeft, playBeep]);
+  }, [timerOn, timeLeft]); // תוקן: הורדנו את playBeep מכאן כדי למנוע קריסה
 
   const startTimer = useCallback((s) => {
     setTimeLeft(s);
@@ -389,7 +389,7 @@ function App() {
   
   // Memoized computations for performance
   const stats = useMemo(() => calcStats(hist), [hist]);
-  const planned = useMemo(() => cats.find(c => c.id === sched[today.getDay()]), [cats, sched, today]);
+  const planned = useMemo(() => cats.find(c => c.id === sched[today.getDay()]), [cats, sched, today.getDay()]);
 
   // Management Handlers
   const enterManage = () => { setDraftCats(JSON.parse(JSON.stringify(cats))); setManage(true); };
@@ -535,7 +535,7 @@ function App() {
         </div>
       </div>
     );
-  }, [calDate, hist, cats, sched, today]);
+  }, [calDate, hist, cats, sched, today.getMonth(), today.getFullYear(), today.getDate()]);
 
   const renderHome = () => (
     <div className="flex flex-col gap-5 p-5 pb-28 slide-up" dir="rtl">
