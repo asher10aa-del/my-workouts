@@ -87,6 +87,12 @@
     
     .styled-input { background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-light); color: var(--text); transition: all 0.2s ease; }
     .styled-input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-glow); outline: none; }
+
+    /* Custom Toggle Switch */
+    .toggle-checkbox:checked { right: 0; border-color: var(--primary); }
+    .toggle-checkbox:checked + .toggle-label { background-color: var(--primary); }
+    .toggle-checkbox { right: 0; z-index: 1; border-color: #4b5563; transition: all 0.3s; }
+    .toggle-label { background-color: #374151; transition: all 0.3s; }
   </style>
 </head>
 <body>
@@ -99,7 +105,7 @@ const S = {
   get: (k, d) => { try { const v = localStorage.getItem(k); return v != null ? JSON.parse(v) : d; } catch { return d; } },
   set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { console.warn('Storage error', e); } }
 };
-const VER = 'v22';
+const VER = 'v23'; // Bumped version for clean state but we will migrate old data
 
 /* ── AUDIO SUBSYSTEM ── */
 const playBeep = () => {
@@ -125,11 +131,12 @@ const DAY_LET = ['א','ב','ג','ד','ה','ו','ש'];
 
 const DEF_CATS = [
   {id:'c1', name:'Upper A', hex:'#3b82f6', icon:'dumbbell', exercises:[
-    {id:'h1', name:'דחיקת חזה עליון', sets:2, reps:10, weight:'22.5', notes:''},
-    {id:'g1', name:'חתירה במכונה', sets:2, reps:10, weight:'37.5', notes:''}
+    {id:'h1', name:'דחיקת חזה עליון (סמיט/חופשי)', sets:2, reps:10, weight:'22.5', notes:''},
+    {id:'g1', name:'חתירה במכונה (אדומה)', sets:2, reps:10, weight:'37.5', notes:''}
   ]}
 ];
 const DEF_SCHED = {0:'c1', 1:null, 2:null, 3:null, 4:null, 5:null, 6:null};
+const DEF_PREFS = { timer: true, calendar: true, stats: true };
 
 /* ── ICONS LIBRARY ── */
 const ICONS = {
@@ -149,12 +156,17 @@ const ICONS = {
   edit: <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>,
   clock: <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>,
   settings: <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></>,
-  arrowLeft: <><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></>,
   stop: <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>,
   minimize: <line x1="8" y1="12" x2="16" y2="12"/>,
   palette: <path d="M12 22a10 10 0 1 1 10-10c0 1.65-1.35 3-3 3h-2.1c-.55 0-1 .45-1 1 0 .27.11.52.29.71.18.18.29.44.29.71 0 1.65-1.35 3-3 3zm-6-9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm4-4a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm5 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm4 4a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/>,
   download: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></>,
   upload: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></>,
+  flame: <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>,
+  trophy: <><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></>,
+  info: <><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></>,
+  refresh: <><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></>,
+  arrowUp: <><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></>,
+  arrowDown: <><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></>,
 };
 
 const Ic = React.memo(({n, size=24, cls='', style={}}) => (
@@ -163,12 +175,14 @@ const Ic = React.memo(({n, size=24, cls='', style={}}) => (
   </svg>
 ));
 
+/* ── STATS CALCULATION ── */
 function calcStats(history) {
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
   let streak = 0, d = new Date(today);
   
   if (!history[todayStr] || history[todayStr]?.status !== 'done') d.setDate(d.getDate() - 1);
+  
   while (true) {
     const s = d.toISOString().split('T')[0];
     if (history[s]?.status === 'done') { streak++; d.setDate(d.getDate() - 1); }
@@ -191,7 +205,20 @@ function calcStats(history) {
   return { streak, totalDone, monthDone, monthMissed, weeks };
 }
 
-/* ══════════════ MODALS ══════════════ */
+/* ══════════════ COMPONENTS ══════════════ */
+const Toggle = ({ label, checked, onChange, icon }) => (
+  <div className="flex items-center justify-between p-3 rounded-xl bg-black/20 border border-white/5 btn-press" onClick={() => onChange(!checked)}>
+    <div className="flex items-center gap-2.5">
+      {icon && <Ic n={icon} size={18} style={{color: 'var(--muted)'}}/>}
+      <span className="font-bold text-sm text-gray-300">{label}</span>
+    </div>
+    <div className="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+      <input type="checkbox" checked={checked} readOnly className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer" style={{transform: checked ? 'translateX(-100%)' : 'translateX(0)'}}/>
+      <label className={`toggle-label block overflow-hidden h-6 rounded-full cursor-pointer ${checked ? 'bg-blue-500' : 'bg-gray-600'}`}></label>
+    </div>
+  </div>
+);
+
 function ExerciseEditModal({ exercise, onSave, onClose }) {
   const [d, setD] = useState({ notes: '', ...exercise });
   
@@ -232,66 +259,53 @@ function ExerciseEditModal({ exercise, onSave, onClose }) {
   );
 }
 
-function SettingsModal({ onClose, cats, sched, setSched, importData, exportData, theme, setTheme }) {
-  const themes = [
-    { id: 'default', name: 'קלאסי (כחול-ורוד)' },
-    { id: 'emerald', name: 'אמרלד (ירוק כהה)' },
-    { id: 'ocean', name: 'אוקיינוס (תכלת עמוק)' }
-  ];
-
+function DayInfoModal({ dateInfo, onClose, history, categories, schedule, onUpdateStatus }) {
+  if (!dateInfo) return null;
+  const dateObj = dateInfo.date;
+  const dateStr = dateObj.toISOString().split('T')[0];
+  const record = history[dateStr];
+  const plannedId = schedule[dateObj.getDay()];
+  const [selId, setSelId] = useState(record?.type || plannedId || categories[0]?.id || '');
+  const label = dateObj.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  
   return (
-    <div className="fixed inset-0 z-[200] flex flex-col justify-end p-0 fade-in" style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)' }}>
-      <div className="card w-full p-6 pt-8 relative slide-up rounded-b-none rounded-t-[2rem] max-h-[85vh] overflow-y-auto no-scroll" dir="rtl">
-        <button onClick={onClose} className="absolute top-5 left-5 p-2 rounded-xl btn-press bg-white/5 text-gray-400">
-          <Ic n="x" size={20}/>
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-5 fade-in" style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }}>
+      <div className="card w-full max-w-sm p-6 relative text-center slide-down">
+        <button onClick={onClose} className="absolute top-4 left-4 p-2 rounded-xl btn-press" style={{ color: 'var(--muted)', background: 'rgba(255,255,255,0.05)' }}>
+          <Ic n="x" size={18}/>
         </button>
-        <h3 className="text-2xl font-black mb-6 text-white px-2">הגדרות מתקדמות</h3>
-        
-        <div className="space-y-6">
-          {/* Themes */}
-          <div className="p-4 rounded-2xl bg-black/20 border border-white/5">
-            <h4 className="font-bold text-sm mb-3 flex items-center gap-2 text-gray-300"><Ic n="palette" size={18}/> ערכת נושא</h4>
-            <div className="grid grid-cols-1 gap-2">
-              {themes.map(t => (
-                <button key={t.id} onClick={() => setTheme(t.id)} 
-                  className={`p-3 rounded-xl text-right font-bold text-sm btn-press transition-all ${theme === t.id ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' : 'bg-white/5 text-gray-400 border border-transparent'}`}>
-                  {t.name}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Schedule */}
-          <div className="p-4 rounded-2xl bg-black/20 border border-white/5">
-            <h4 className="font-bold text-sm mb-3 flex items-center gap-2 text-gray-300"><Ic n="calendar" size={18}/> לוח אימונים קבוע</h4>
-            <div className="space-y-2">
-              {[0, 1, 2, 3, 4, 5, 6].map(di => (
-                <div key={di} className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-white/5 text-xs font-black text-gray-400">{DAY_LET[di]}</div>
-                  <select className="flex-1 p-2 rounded-lg text-sm font-bold styled-input bg-transparent border border-white/10" dir="rtl"
-                    value={sched[di] || ''} onChange={e => setSched(prev => ({ ...prev, [di]: e.target.value || null }))}>
-                    <option value="" className="text-gray-800">מנוחה</option>
-                    {cats.map(cat => <option key={cat.id} value={cat.id} className="text-gray-800">{cat.name}</option>)}
-                  </select>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Backup */}
-          <div className="p-4 rounded-2xl bg-black/20 border border-white/5">
-            <h4 className="font-bold text-sm mb-3 flex items-center gap-2 text-gray-300"><Ic n="download" size={18}/> גיבוי ושחזור</h4>
-            <div className="flex gap-2">
-              <button onClick={exportData} className="flex-1 p-3 rounded-xl font-bold flex items-center justify-center gap-2 bg-blue-500/10 text-blue-400 text-sm">
-                <Ic n="download" size={16}/> גיבוי
-              </button>
-              <label className="flex-1 p-3 rounded-xl font-bold flex items-center justify-center gap-2 bg-emerald-500/10 text-emerald-400 text-sm cursor-pointer">
-                <Ic n="upload" size={16}/> שחזור
-                <input type="file" accept=".json" className="hidden" onChange={importData}/>
-              </label>
-            </div>
-          </div>
+        <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)' }}>
+          <Ic n="calendar" size={28} style={{ color: 'var(--primary)' }}/>
         </div>
+        <h3 className="text-lg font-black mb-6 text-white">{label}</h3>
+        
+        <div className="text-right rounded-xl p-4 mb-6" style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid var(--border)' }}>
+          <label className="text-xs font-bold mb-2 block text-gray-400">איזה אימון?</label>
+          <select className="w-full p-3 rounded-xl font-bold styled-input" dir="rtl"
+            value={selId} onChange={e => setSelId(e.target.value)}>
+            {categories.map(c => <option key={c.id} value={c.id}>{c.name}{c.id === plannedId ? ' (מתוכנן)' : ''}</option>)}
+          </select>
+        </div>
+        
+        <div className="flex gap-3 mb-4">
+          <button onClick={() => onUpdateStatus(dateStr, 'done', selId)}
+            className={`flex-1 p-4 rounded-xl font-black flex flex-col items-center gap-1.5 btn-press transition-all ${record?.status === 'done' ? 'text-white' : 'text-emerald-400'}`}
+            style={{ background: record?.status === 'done' ? '#059669' : 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)' }}>
+            <Ic n="check" size={22}/><span className="text-xs">בוצע בהצלחה</span>
+          </button>
+          <button onClick={() => onUpdateStatus(dateStr, 'missed', selId)}
+            className={`flex-1 p-4 rounded-xl font-black flex flex-col items-center gap-1.5 btn-press transition-all ${record?.status === 'missed' ? 'text-white' : 'text-rose-400'}`}
+            style={{ background: record?.status === 'missed' ? '#e11d48' : 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.3)' }}>
+            <Ic n="x" size={22}/><span className="text-xs">דולג / מנוחה</span>
+          </button>
+        </div>
+        {record && (
+          <button onClick={() => onUpdateStatus(dateStr, null, null)}
+            className="w-full p-3.5 rounded-xl font-bold btn-press mt-2 text-sm"
+            style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--muted)' }}>
+            איפוס רישום ליום זה
+          </button>
+        )}
       </div>
     </div>
   );
@@ -302,15 +316,18 @@ function App() {
   const [page, setPage] = useState('home');
   const [workout, setWorkout] = useState(null);
   
-  const [cats, setCats] = useState(() => S.get(`wk_${VER}_cats`, DEF_CATS));
-  const [hist, setHist] = useState(() => S.get(`wk_${VER}_hist`, {}));
-  const [sched, setSched] = useState(() => S.get(`wk_${VER}_sched`, DEF_SCHED));
-  const [theme, setTheme] = useState(() => S.get(`wk_${VER}_theme`, 'default'));
+  // Data State - Attempting to migrate if v23 is empty but older exists
+  const getInitial = (key, def) => S.get(`wk_${VER}_${key}`, S.get(`wk_v22_${key}`, S.get(`wk_v21_${key}`, S.get(`workout_v16_${key}`, def))));
+  
+  const [cats, setCats] = useState(() => getInitial('cats', DEF_CATS));
+  const [hist, setHist] = useState(() => getInitial('hist', {}));
+  const [sched, setSched] = useState(() => getInitial('sched', DEF_SCHED));
+  const [theme, setTheme] = useState(() => getInitial('theme', 'default'));
+  const [prefs, setPrefs] = useState(() => getInitial('prefs', DEF_PREFS));
 
   const [manage, setManage] = useState(false);
   const [draftCats, setDraftCats] = useState(null);
   const [editEx, setEditEx] = useState(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const [timeLeft, setTimeLeft] = useState(0);
   const [timerOn, setTimerOn] = useState(false);
@@ -318,17 +335,24 @@ function App() {
   const [timerMinimized, setTimerMinimized] = useState(false);
 
   const [calDate, setCalDate] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const [selDate, setSelDate] = useState(null);
+  const fileRef = useRef(null);
 
+  // Apply Theme
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    S.set(`wk_${VER}_theme`, theme);
   }, [theme]);
 
+  // Persist State
   useEffect(() => S.set(`wk_${VER}_cats`, cats), [cats]);
   useEffect(() => S.set(`wk_${VER}_hist`, hist), [hist]);
   useEffect(() => S.set(`wk_${VER}_sched`, sched), [sched]);
+  useEffect(() => S.set(`wk_${VER}_theme`, theme), [theme]);
+  useEffect(() => S.set(`wk_${VER}_prefs`, prefs), [prefs]);
 
+  // Timer Logic
   useEffect(() => {
+    if (!prefs.timer) return; // If timer disabled in prefs
     let iv;
     if (timerOn && timeLeft > 0) {
       iv = setInterval(() => setTimeLeft(t => t - 1), 1000);
@@ -339,7 +363,7 @@ function App() {
       playBeep();
     }
     return () => clearInterval(iv);
-  }, [timerOn, timeLeft]);
+  }, [timerOn, timeLeft, prefs.timer]);
 
   const startTimer = useCallback((s) => {
     setTimeLeft(s);
@@ -363,25 +387,47 @@ function App() {
   
   const dispCats = manage ? draftCats : cats;
 
-  const exportData = () => {
-    const blob = new Blob([JSON.stringify({ cats, hist, sched, theme }, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `Fitness_Data_${todayKey}.json`; a.click(); URL.revokeObjectURL(url);
-  };
-  const importData = (e) => {
-    const file = e.target.files[0]; if (!file) return;
-    const r = new FileReader();
-    r.onload = ev => {
-      try {
-        const d = JSON.parse(ev.target.result);
-        if (d.cats) setCats(d.cats); if (d.hist) setHist(d.hist); if (d.sched) setSched(d.sched); if (d.theme) setTheme(d.theme);
-        alert('הנתונים שוחזרו בהצלחה מהגיבוי.');
-        setSettingsOpen(false);
-      } catch { alert('קובץ שגוי.'); }
-    };
-    r.readAsText(file); e.target.value = '';
-  };
+  // Handlers for Manage Mode
+  const enterManage = () => { setDraftCats(JSON.parse(JSON.stringify(cats))); setManage(true); };
+  const saveManage = () => { setCats(draftCats); setManage(false); setDraftCats(null); };
+  const cancelManage = () => { setManage(false); setDraftCats(null); };
 
+  const moveCat = (i, dir) => {
+    const a = [...draftCats], j = i + dir;
+    if (j < 0 || j >= a.length) return;
+    [a[i], a[j]] = [a[j], a[i]]; setDraftCats(a);
+  };
+  const addCat = () => {
+    const name = prompt('שם תוכנית האימון החדשה:');
+    if (name) setDraftCats([...draftCats, { id: crypto.randomUUID(), name, hex: '#a855f7', icon: 'dumbbell', exercises: [] }]);
+  };
+  const delCat = (i) => {
+    if (confirm(`האם ברצונך למחוק את "${draftCats[i].name}" לחלוטין?`)) {
+      const a = [...draftCats]; a.splice(i, 1); setDraftCats(a);
+    }
+  };
+  const renameCat = (i) => {
+    const n = prompt('שם התוכנית החדש:', draftCats[i].name);
+    if (n) { const a = [...draftCats]; a[i] = { ...a[i], name: n }; setDraftCats(a); }
+  };
+  
+  const moveEx = (i, dir) => {
+    const a = [...draftCats], ci = a.findIndex(c => c.id === workout);
+    const exs = [...a[ci].exercises], j = i + dir;
+    if (j < 0 || j >= exs.length) return;
+    [exs[i], exs[j]] = [exs[j], exs[i]]; a[ci] = { ...a[ci], exercises: exs }; setDraftCats(a);
+  };
+  const addEx = () => {
+    const a = [...draftCats], ci = a.findIndex(c => c.id === workout);
+    const ex = { id: crypto.randomUUID(), name: 'הזן תרגיל חדש', sets: 3, reps: 10, weight: '0', notes: '' };
+    a[ci] = { ...a[ci], exercises: [...a[ci].exercises, ex] }; setDraftCats(a); setEditEx(ex);
+  };
+  const delEx = (id) => {
+    if (confirm('מחיקת תרגיל זה מהרשימה?')) {
+      const a = [...draftCats], ci = a.findIndex(c => c.id === workout);
+      a[ci] = { ...a[ci], exercises: a[ci].exercises.filter(e => e.id !== id) }; setDraftCats(a);
+    }
+  };
   const saveEx = (upd) => {
     if (manage) {
       const a = [...draftCats], ci = a.findIndex(c => c.id === workout);
@@ -393,106 +439,473 @@ function App() {
     setEditEx(null);
   };
 
+  const updateHist = useCallback((dateStr, status, catId) => {
+    setHist(prev => {
+      const h = { ...prev };
+      if (!status) delete h[dateStr];
+      else h[dateStr] = { type: catId, status };
+      return h;
+    });
+    setSelDate(null);
+  }, []);
+
+  // I/O Methods
+  const exportData = () => {
+    const blob = new Blob([JSON.stringify({ cats, hist, sched, theme, prefs }, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `Fitness_Data_${todayKey}.json`; a.click(); URL.revokeObjectURL(url);
+  };
+  const importData = (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    const r = new FileReader();
+    r.onload = ev => {
+      try {
+        const d = JSON.parse(ev.target.result);
+        if (d.cats) setCats(d.cats); if (d.hist) setHist(d.hist); if (d.sched) setSched(d.sched); 
+        if (d.theme) setTheme(d.theme); if (d.prefs) setPrefs(d.prefs);
+        alert('הנתונים שוחזרו בהצלחה מהגיבוי.');
+      } catch { alert('קובץ שגוי.'); }
+    };
+    r.readAsText(file); e.target.value = '';
+  };
+  const resetAll = () => {
+    if (confirm('אזהרה: פעולה זו תמחק את כל היסטוריית האימונים ותאפס להגדרות יצרן. להמשיך?')) {
+      setCats(DEF_CATS); setHist({}); setSched(DEF_SCHED); alert('מערכת אופסה בהצלחה.');
+    }
+  };
+
+  /* ── RENDERERS ── */
+  const renderCal = useMemo(() => {
+    if (!prefs.calendar) return null;
+    const dim = new Date(calDate.getFullYear(), calDate.getMonth() + 1, 0).getDate();
+    const firstDay = new Date(calDate.getFullYear(), calDate.getMonth(), 1).getDay();
+    const mName = calDate.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' });
+    
+    return (
+      <div className="card p-6 mt-2" dir="rtl">
+        <div className="flex justify-between items-center mb-5 px-1">
+          <button onClick={() => setCalDate(new Date(calDate.getFullYear(), calDate.getMonth() - 1, 1))}
+            className="p-2.5 rounded-xl btn-press bg-white/5 text-gray-400 hover:text-white transition-colors">
+            <Ic n="chevR" size={18}/>
+          </button>
+          <span className="font-black text-lg tracking-wide text-white">{mName}</span>
+          <button onClick={() => setCalDate(new Date(calDate.getFullYear(), calDate.getMonth() + 1, 1))}
+            className="p-2.5 rounded-xl btn-press bg-white/5 text-gray-400 hover:text-white transition-colors">
+            <Ic n="chevL" size={18}/>
+          </button>
+        </div>
+        <div className="grid grid-cols-7 gap-1.5 text-center">
+          {DAY_LET.map(d => <div key={d} className="text-xs font-bold pb-2 text-gray-500">{d}</div>)}
+          {[...Array(firstDay)].map((_, i) => <div key={`e${i}`}/>)}
+          {[...Array(dim)].map((_, i) => {
+            const dn = i + 1;
+            const cd = new Date(calDate.getFullYear(), calDate.getMonth(), dn);
+            const ds = cd.toISOString().split('T')[0];
+            const rec = hist[ds];
+            const pl = cats.find(c => c.id === sched[cd.getDay()]);
+            const isToday = dn === today.getDate() && calDate.getMonth() === today.getMonth() && calDate.getFullYear() === today.getFullYear();
+            
+            let bg = 'rgba(255,255,255,0.02)', border = '1px solid transparent', txtCol = 'var(--text)', ico = null;
+            if (rec) {
+              if (rec.status === 'done') {
+                bg = cats.find(c => c.id === rec.type)?.hex || pl?.hex || '#3b82f6';
+                txtCol = 'white'; ico = <Ic n="check" size={12}/>;
+              } else {
+                bg = 'rgba(244,63,94,0.3)'; border = '1px solid rgba(244,63,94,0.5)'; txtCol = '#fb7185'; ico = <Ic n="x" size={12}/>;
+              }
+            } else if (isToday) {
+              border = '2px solid var(--primary)'; txtCol = 'var(--primary)'; bg = 'var(--primary-glow)';
+            } else if (cd > today) {
+               txtCol = 'rgba(255,255,255,0.2)';
+            }
+
+            return (
+              <div key={dn} onClick={() => setSelDate({ date: cd })}
+                className="aspect-square flex flex-col items-center justify-center rounded-[10px] cursor-pointer btn-press text-xs font-bold transition-all hover:scale-105"
+                style={{ backgroundColor: bg, border: border, color: txtCol }}>
+                {dn}
+                <div className="mt-0.5 min-h-[12px]">
+                  {ico || (pl && !rec && <div className="w-1.5 h-1.5 rounded-full opacity-70" style={{ backgroundColor: pl.hex }}/>)}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }, [calDate, hist, cats, sched, today.getMonth(), today.getFullYear(), today.getDate(), prefs.calendar]);
+
+  const renderHome = () => (
+    <div className="flex flex-col gap-5 p-5 pb-28 slide-up" dir="rtl">
+      <div className="flex justify-between items-center mt-6 px-1">
+        <h1 className="text-2xl font-black text-white">האימונים שלי</h1>
+        <button onClick={enterManage} className="p-3 rounded-2xl btn-press bg-white/5 border border-white/10 text-gray-300">
+          <Ic n="edit" size={20}/>
+        </button>
+      </div>
+      
+      <div className="card p-6 border-r-4 relative overflow-hidden" style={{ borderRightColor: planned ? planned.hex : 'var(--border)' }}>
+        <p className="text-xs font-bold uppercase mb-1 text-gray-400">{dayName}, מתוכנן להיום:</p>
+        <p className="text-3xl font-black text-white">{planned?.name || 'מנוחה'}</p>
+        {planned && (
+          <button onClick={() => setWorkout(planned.id)} className="mt-4 w-full py-3 rounded-xl font-bold text-white flex items-center justify-center gap-2 btn-press" style={{ background: planned.hex }}>
+            <Ic n="arrowLeft" size={18}/> התחל אימון
+          </button>
+        )}
+      </div>
+
+      <div className="grid gap-3">
+        <h3 className="text-sm font-black text-gray-300 mt-2">כל האימונים</h3>
+        {dispCats.map((cat, i) => (
+          <div key={cat.id} className="flex items-center gap-2">
+            {manage && (
+              <div className="flex flex-col gap-1">
+                <button onClick={() => moveCat(i, -1)} className="p-2 rounded-lg btn-press bg-white/5 text-gray-400"><Ic n="arrowUp" size={16}/></button>
+                <button onClick={() => moveCat(i, 1)} className="p-2 rounded-lg btn-press bg-white/5 text-gray-400"><Ic n="arrowDown" size={16}/></button>
+              </div>
+            )}
+            <button onClick={() => manage ? renameCat(i) : setWorkout(cat.id)}
+              className={`flex-1 flex items-center justify-between p-5 rounded-2xl btn-press transition-all ${manage ? 'border-blue-500/50 bg-blue-500/5' : 'card'}`}>
+              <div className="flex items-center gap-4">
+                <span className="p-3 rounded-xl shadow-inner" style={{ background: 'rgba(0,0,0,0.4)', color: cat.hex }}><Ic n={cat.icon} size={22}/></span>
+                <span className="text-lg font-black text-white">{cat.name}</span>
+              </div>
+              {manage ? <Ic n="edit" size={20} style={{ color: 'var(--primary)' }}/> : <Ic n="arrowLeft" size={20} style={{ color: 'rgba(255,255,255,0.2)' }}/>}
+            </button>
+            {manage && <button onClick={() => delCat(i)} className="p-5 rounded-2xl btn-press bg-rose-500/10 text-rose-500 border border-rose-500/20"><Ic n="trash" size={20}/></button>}
+          </div>
+        ))}
+        {manage && (
+          <button onClick={addCat} className="w-full mt-2 p-5 rounded-2xl font-bold flex flex-col items-center gap-2 btn-press border-2 border-dashed border-white/20 text-gray-400 hover:text-white hover:border-white/40 transition-colors">
+            <Ic n="plus" size={24}/> הוסף אימון חדש
+          </button>
+        )}
+      </div>
+      {renderCal}
+    </div>
+  );
+
   const renderWorkoutDetail = () => {
     const cat = dispCats.find(c => c.id === workout);
     if (!cat) return null;
+    const todayRec = hist[todayKey];
     
     return (
       <div className="p-5 pb-32 fade-in" dir="rtl">
         <div className="flex justify-between items-center mt-6 mb-8 px-1">
-          <button onClick={() => setWorkout(null)} className="flex items-center gap-2 btn-press text-gray-400 bg-white/5 px-4 py-2 rounded-xl">
-            <Ic n="chevR" size={20}/><span className="font-bold text-sm">חזור</span>
-          </button>
           {!manage ? (
-            <button onClick={() => { setDraftCats(JSON.parse(JSON.stringify(cats))); setManage(true); }} className="p-2.5 rounded-xl btn-press bg-white/5 text-gray-300">
-              <Ic n="edit" size={20}/>
+            <button onClick={() => setWorkout(null)} className="flex items-center gap-2 btn-press text-gray-400 bg-white/5 px-4 py-2 rounded-xl">
+              <Ic n="chevR" size={20}/><span className="font-bold text-sm">חזור</span>
             </button>
           ) : (
-            <div className="flex gap-2">
-              <button onClick={() => { setCats(draftCats); setManage(false); }} className="px-4 py-2 rounded-xl bg-emerald-600 text-white font-bold text-sm">שמור</button>
-              <button onClick={() => setManage(false)} className="px-4 py-2 rounded-xl bg-white/10 text-gray-300 font-bold text-sm">בטל</button>
-            </div>
+            <span className="text-xs font-black px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-400">מצב עריכת אימון</span>
           )}
+          {!manage && <button onClick={enterManage} className="p-2.5 rounded-xl btn-press bg-white/5 text-gray-300"><Ic n="edit" size={20}/></button>}
         </div>
 
         <h2 className="text-4xl font-black text-white mb-6 px-2">{cat.name}</h2>
 
+        {!manage && (
+          <div className="flex gap-3 mb-8">
+            {[
+              { status: 'done', ico: 'check', label: 'סיימתי היום', bg: '#059669', activeBg: 'rgba(16,185,129,0.1)', borderCol: 'rgba(16,185,129,0.3)', textCol: '#34d399' },
+              { status: 'missed', ico: 'x', label: 'דילגתי היום', bg: '#e11d48', activeBg: 'rgba(244,63,94,0.1)', borderCol: 'rgba(244,63,94,0.3)', textCol: '#fb7185' },
+            ].map(({ status, ico, label, bg, activeBg, borderCol, textCol }) => {
+              const active = todayRec?.status === status && todayRec?.type === workout;
+              return (
+                <button key={status} onClick={() => updateHist(todayKey, status, workout)}
+                  className={`flex-1 flex flex-col items-center justify-center py-4 rounded-2xl btn-press transition-all duration-300 ${active ? 'scale-105' : ''}`}
+                  style={{ background: active ? bg : activeBg, border: `1px solid ${active ? bg : borderCol}`, color: active ? 'white' : textCol, boxShadow: active ? `0 8px 25px ${bg}60` : 'none' }}>
+                  <Ic n={ico} size={24} cls="mb-1.5"/>
+                  <span className="font-black text-sm">{label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         <div className="space-y-4">
           {cat.exercises.map((ex, idx) => (
-            <div key={ex.id} className={`p-5 rounded-2xl relative overflow-hidden transition-colors btn-press ${manage ? 'bg-blue-500/10 border border-blue-500/30' : 'card'}`}
-                 onClick={() => setEditEx(ex)}>
-              <div className="absolute top-0 right-0 w-1.5 h-full opacity-60 rounded-l-full" style={{ backgroundColor: cat.hex }}/>
-              <div className="pr-3">
-                <h4 className="font-black text-lg mb-2 text-white">{ex.name}</h4>
-                <div className="flex gap-5 text-sm mb-2">
-                  <span className="text-gray-400 font-bold">{ex.sets} <span className="text-[10px]">סטים</span></span>
-                  <span className="text-gray-400 font-bold">{ex.reps} <span className="text-[10px]">חזרות</span></span>
-                  <span className="font-black drop-shadow-sm" style={{ color: cat.hex }}>{ex.weight} <span className="text-[10px]">ק"ג</span></span>
+            <div key={ex.id} className="flex gap-2">
+              {manage && (
+                <div className="flex flex-col gap-1 justify-center">
+                  <button onClick={() => moveEx(idx, -1)} className="p-2.5 rounded-xl btn-press bg-white/5 text-gray-400"><Ic n="arrowUp" size={16}/></button>
+                  <button onClick={() => moveEx(idx, 1)} className="p-2.5 rounded-xl btn-press bg-white/5 text-gray-400"><Ic n="arrowDown" size={16}/></button>
                 </div>
-                {ex.notes && <p className="text-xs text-gray-500 italic bg-black/20 p-2 rounded-lg inline-block border border-white/5">{ex.notes}</p>}
+              )}
+              <div className={`flex-1 p-5 rounded-2xl relative overflow-hidden flex justify-between items-center transition-colors btn-press ${manage ? 'bg-blue-500/10 border border-blue-500/30' : 'card'}`}
+                   onClick={() => setEditEx(ex)}>
+                <div className="absolute top-0 right-0 w-1.5 h-full opacity-60 rounded-l-full" style={{ backgroundColor: cat.hex }}/>
+                <div className="flex-1 pr-3">
+                  <h4 className="font-black text-lg mb-2 text-white">{ex.name}</h4>
+                  <div className="flex gap-5 text-sm mb-2">
+                    <span className="text-gray-400 font-bold">{ex.sets} <span className="text-[10px]">סטים</span></span>
+                    <span className="text-gray-400 font-bold">{ex.reps} <span className="text-[10px]">חזרות</span></span>
+                    <span className="font-black drop-shadow-sm" style={{ color: cat.hex }}>{ex.weight} <span className="text-[10px]">ק"ג</span></span>
+                  </div>
+                  {ex.notes && <p className="text-xs text-gray-500 italic bg-black/20 p-2 rounded-lg inline-block border border-white/5">{ex.notes}</p>}
+                </div>
+                {manage && (
+                   <button onClick={(e) => { e.stopPropagation(); delEx(ex.id); }} className="p-3 rounded-xl btn-press bg-rose-500/10 text-rose-500 border border-rose-500/20"><Ic n="trash" size={18}/></button>
+                )}
               </div>
             </div>
           ))}
+          {manage && (
+            <button onClick={addEx} className="w-full mt-4 p-5 rounded-2xl font-bold flex flex-col items-center gap-2 btn-press border-2 border-dashed border-white/20 text-gray-400 hover:text-white hover:border-white/40 transition-colors">
+              <Ic n="plus" size={24}/> הוסף תרגיל למערך
+            </button>
+          )}
         </div>
       </div>
     );
   };
+
+  const renderStats = () => {
+    const maxW = Math.max(...stats.weeks, 1);
+    const catBreak = {};
+    Object.values(hist).filter(r => r.status === 'done').forEach(r => { catBreak[r.type] = (catBreak[r.type] || 0) + 1; });
+    const rate = stats.monthDone + stats.monthMissed > 0 ? Math.round((stats.monthDone / (stats.monthDone + stats.monthMissed)) * 100) : 0;
+    
+    return (
+      <div className="p-5 pb-28 slide-up" dir="rtl">
+        <h2 className="text-3xl font-black mt-6 mb-8 text-white px-2">סטטיסטיקה ומעקב</h2>
+
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          {[
+            { ico: 'trophy', val: stats.totalDone, label: 'סך הכל', sub: 'אימונים שהושלמו', col: '#f59e0b' },
+            { ico: 'flame', val: stats.streak, label: 'רצף נוכחי', sub: 'ימי אימון רצופים', col: '#f97316' },
+            { ico: 'target', val: `${rate}%`, label: 'אחוז התמדה', sub: 'יחס ביצוע לתכנון', col: '#3b82f6' },
+            { ico: 'check', val: stats.monthDone, label: 'החודש', sub: 'ביצועים חודשיים', col: '#10b981' },
+          ].map(({ ico, val, label, sub, col }) => (
+            <div key={label} className="card p-5 flex flex-col items-center text-center">
+              <Ic n={ico} size={28} cls="mb-3" style={{ color: col, filter: `drop-shadow(0 0 8px ${col}40)` }}/>
+              <div className="text-4xl font-black mb-1.5 text-white">{val}</div>
+              <div className="text-sm font-black text-gray-200">{label}</div>
+              <div className="text-[10px] mt-1 leading-tight text-gray-500 font-medium">{sub}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="card p-6 mb-6">
+          <h3 className="font-black text-sm mb-5 text-white">גרף אימונים (8 שבועות אחרונים)</h3>
+          <div className="flex items-end gap-2 h-32">
+            {stats.weeks.map((cnt, i) => (
+              <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
+                <span className="text-xs font-bold text-gray-400">{cnt > 0 ? cnt : ''}</span>
+                <div className="w-full rounded-t-lg transition-all duration-700 ease-out" style={{
+                  height: `${Math.max((cnt / maxW) * 90, cnt > 0 ? 8 : 4)}px`,
+                  background: cnt > 0 ? `linear-gradient(180deg, ${i === 7 ? 'var(--primary)' : '#475569'}, ${i === 7 ? 'var(--primary)' : '#1e293b'})` : 'rgba(255,255,255,0.05)',
+                  boxShadow: i === 7 && cnt > 0 ? '0 0 10px var(--primary-glow)' : 'none',
+                  opacity: cnt > 0 ? 0.6 + (cnt / maxW) * 0.4 : 1,
+                }}/>
+                <span className="text-[9px] text-gray-500 font-bold">{i === 7 ? 'נוכחי' : `ש' ${8-i}`}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="card p-6 mb-6">
+          <h3 className="font-black text-sm mb-5 text-white">התפלגות סוגי אימון</h3>
+          <div className="space-y-4">
+            {cats.map(cat => {
+              const cnt = catBreak[cat.id] || 0;
+              const pct = stats.totalDone > 0 ? (cnt / stats.totalDone) * 100 : 0;
+              return (
+                <div key={cat.id}>
+                  <div className="flex justify-between text-sm mb-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: cat.hex, boxShadow: `0 0 6px ${cat.hex}` }}/>
+                      <span className="font-bold text-white">{cat.name}</span>
+                    </div>
+                    <span className="font-medium text-gray-400">{cnt} אימונים ({Math.round(pct)}%)</span>
+                  </div>
+                  <div className="h-2.5 rounded-full overflow-hidden bg-white/5 border border-white/5">
+                    <div className="h-full rounded-full transition-all duration-1000 ease-out" style={{ width: `${pct}%`, backgroundColor: cat.hex, boxShadow: `0 0 10px ${cat.hex}80` }}/>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderSettings = () => (
+    <div className="p-5 pb-28 slide-up" dir="rtl">
+      <h2 className="text-3xl font-black mt-6 mb-8 text-white px-2">הגדרות מתקדמות</h2>
+
+      {/* Feature Toggles */}
+      <div className="card p-6 mb-5">
+        <h3 className="font-black text-sm mb-5 flex items-center gap-2.5 text-white">
+          <span className="p-1.5 bg-purple-500/10 rounded-lg text-purple-400"><Ic n="settings" size={18}/></span> התאמת ממשק
+        </h3>
+        <div className="space-y-3">
+          <Toggle label="טיימר מנוחה צף" icon="clock" checked={prefs.timer} onChange={v => setPrefs({...prefs, timer: v})} />
+          <Toggle label="לוח שנה במסך ראשי" icon="calendar" checked={prefs.calendar} onChange={v => setPrefs({...prefs, calendar: v})} />
+          <Toggle label="עמוד סטטיסטיקה ומעקב" icon="barChart" checked={prefs.stats} onChange={v => setPrefs({...prefs, stats: v})} />
+        </div>
+      </div>
+
+      {/* Themes */}
+      <div className="card p-6 mb-5">
+        <h3 className="font-black text-sm mb-5 flex items-center gap-2.5 text-white">
+          <span className="p-1.5 bg-yellow-500/10 rounded-lg text-yellow-400"><Ic n="palette" size={18}/></span> ערכת נושא
+        </h3>
+        <div className="grid grid-cols-1 gap-2">
+          {[
+            { id: 'default', name: 'קלאסי (כחול-ורוד)' },
+            { id: 'emerald', name: 'אמרלד (ירוק כהה)' },
+            { id: 'ocean', name: 'אוקיינוס (תכלת עמוק)' }
+          ].map(t => (
+            <button key={t.id} onClick={() => setTheme(t.id)} 
+              className={`p-3.5 rounded-xl text-right font-bold text-sm btn-press transition-all ${theme === t.id ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' : 'bg-white/5 text-gray-400 border border-transparent'}`}>
+              {t.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Schedule */}
+      <div className="card p-6 mb-5">
+        <h3 className="font-black text-sm mb-5 flex items-center gap-2.5 text-white">
+          <span className="p-1.5 bg-blue-500/10 rounded-lg text-blue-400"><Ic n="calendar" size={18}/></span> לוח אימונים קבוע
+        </h3>
+        <div className="space-y-2.5">
+          {[0, 1, 2, 3, 4, 5, 6].map(di => {
+            const pid = sched[di];
+            const c = cats.find(x => x.id === pid);
+            return (
+              <div key={di} className="flex items-center gap-3 p-3.5 rounded-xl border border-white/5 bg-black/20 transition-colors focus-within:border-blue-500/30">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-black bg-white/5 text-gray-400">{DAY_LET[di]}</div>
+                <span className="text-sm font-bold w-14 flex-shrink-0 text-gray-300">{DAY_NAMES[di]}</span>
+                <select className="flex-1 p-2 rounded-lg text-sm font-bold outline-none styled-input bg-transparent border-none focus:ring-0" dir="rtl"
+                  value={pid || ''}
+                  onChange={e => setSched(prev => ({ ...prev, [di]: e.target.value || null }))}>
+                  <option value="" className="text-gray-800">☕ מנוחה / ללא אימון</option>
+                  {cats.map(cat => <option key={cat.id} value={cat.id} className="text-gray-800">{cat.name}</option>)}
+                </select>
+                {c && <div className="w-3 h-3 rounded-full flex-shrink-0 shadow-sm" style={{ backgroundColor: c.hex, boxShadow: `0 0 6px ${c.hex}80` }}/>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* I/O and Danger */}
+      <div className="card p-6 mb-5">
+        <h3 className="font-black text-sm mb-4 flex items-center gap-2.5 text-white">
+          <span className="p-1.5 bg-emerald-500/10 rounded-lg text-emerald-400"><Ic n="download" size={18}/></span> גיבוי וניהול מערכת
+        </h3>
+        <div className="space-y-3">
+          <button onClick={exportData} className="w-full p-4 rounded-xl font-black flex items-center justify-center gap-2.5 btn-press bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 transition-colors">
+            <Ic n="download" size={20}/> ייצוא קובץ גיבוי
+          </button>
+          <button onClick={() => fileRef.current?.click()} className="w-full p-4 rounded-xl font-black flex items-center justify-center gap-2.5 btn-press bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 transition-colors">
+            <Ic n="upload" size={20}/> טעינת גיבוי קיים
+          </button>
+          <input ref={fileRef} type="file" accept=".json" className="hidden" onChange={importData}/>
+          
+          <div className="h-px bg-white/10 my-4"></div>
+          
+          <button onClick={() => window.location.reload(true)} className="w-full p-4 rounded-xl font-black flex items-center justify-center gap-2.5 btn-press bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 transition-colors">
+            <Ic n="refresh" size={20}/> כפה רענון גרסה מהשרת
+          </button>
+          <button onClick={resetAll} className="w-full p-4 rounded-xl font-black flex items-center justify-center gap-2.5 btn-press bg-rose-500/10 border border-rose-500/30 text-rose-500 hover:bg-rose-500/20 transition-colors mt-3">
+            <Ic n="trash" size={20}/> איפוס מוחלט של המערכת
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const NAV = [
+    { id: 'home', n: 'home', label: 'ראשי' },
+    ...(prefs.stats ? [{ id: 'stats', n: 'barChart', label: 'נתונים' }] : []),
+    { id: 'settings', n: 'settings', label: 'הגדרות' },
+  ];
 
   const fmtTime = t => `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
 
   return (
     <div className="min-h-screen relative">
       <main className="relative z-10 max-w-lg mx-auto min-h-screen">
-        {workout ? renderWorkoutDetail() : (
-          <div className="flex flex-col gap-5 p-5 pb-28 slide-up" dir="rtl">
-            <div className="flex justify-between items-center mt-6 px-1">
-              <h1 className="text-2xl font-black text-white">האימונים שלי</h1>
-              <button onClick={() => setSettingsOpen(true)} className="p-3 rounded-2xl btn-press bg-white/5 border border-white/10 text-gray-300">
-                <Ic n="settings" size={20}/>
-              </button>
-            </div>
-            
-            <div className="card p-6 border-l-4 border-l-blue-500 relative overflow-hidden">
-              <p className="text-xs font-bold uppercase mb-1 text-gray-400">{dayName}, מתוכנן להיום:</p>
-              <p className="text-3xl font-black text-white">{planned?.name || 'מנוחה'}</p>
-              {planned && (
-                <button onClick={() => setWorkout(planned.id)} className="mt-4 w-full py-3 rounded-xl font-bold bg-blue-600 text-white flex items-center justify-center gap-2">
-                  <Ic n="arrowLeft" size={18}/> התחל אימון
-                </button>
-              )}
-            </div>
-
-            <div className="grid gap-3">
-              <h3 className="text-sm font-black text-gray-300 mt-2">כל האימונים</h3>
-              {cats.map(cat => (
-                <button key={cat.id} onClick={() => setWorkout(cat.id)} className="card p-5 rounded-2xl btn-press flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <span className="p-3 rounded-xl bg-black/40" style={{ color: cat.hex }}><Ic n={cat.icon} size={22}/></span>
-                    <span className="text-lg font-black text-white">{cat.name}</span>
-                  </div>
-                  <Ic n="arrowLeft" size={20} style={{ color: 'rgba(255,255,255,0.2)' }}/>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+        {workout ? renderWorkoutDetail() : page === 'home' ? renderHome() : page === 'stats' ? renderStats() : renderSettings()}
       </main>
 
-      {/* FLOATING TIMER (MINIMIZED) */}
-      {timerMinimized && timeLeft > 0 && !timerOpen && (
-        <div className="fixed z-50 bottom-24 right-5 slide-up">
-          <button onClick={() => { setTimerMinimized(false); setTimerOpen(true); }}
-            className="px-5 py-3 rounded-full font-black text-white bg-blue-600 shadow-[0_4px_20px_rgba(59,130,246,0.5)] flex items-center gap-2 btn-press border border-blue-400">
-            <Ic n="clock" size={16}/>
-            <span>{fmtTime(timeLeft)}</span>
+      {/* FLOAT ACTION TIMER */}
+      {!manage && prefs.timer && (
+        <div className="fixed z-50 transition-all duration-300" style={{ bottom: '6rem', left: '1.5rem' }}>
+          {timerMinimized && timeLeft > 0 && !timerOpen ? (
+            <button onClick={() => { setTimerMinimized(false); setTimerOpen(true); }}
+              className="px-5 py-3 rounded-full font-black text-white bg-blue-600 shadow-[0_4px_20px_rgba(59,130,246,0.5)] flex items-center gap-2 btn-press border border-blue-400">
+              <Ic n="clock" size={16}/>
+              <span>{fmtTime(timeLeft)}</span>
+            </button>
+          ) : !timerMinimized && (
+            <button onClick={() => setTimerOpen(true)}
+              className={`flex flex-col items-center justify-center rounded-[1.25rem] btn-press transition-all duration-300 ${timeLeft > 0 ? 'w-16 h-16 glow-pulse' : 'w-14 h-14'}`}
+              style={{
+                background: timeLeft > 0 ? 'linear-gradient(135deg, #3b82f6, #1d4ed8)' : 'var(--surface)',
+                border: `1px solid ${timeLeft > 0 ? 'rgba(59,130,246,0.5)' : 'var(--border)'}`,
+                boxShadow: timeLeft > 0 ? '0 10px 25px rgba(59,130,246,0.5)' : '0 4px 15px rgba(0,0,0,0.3)',
+                color: timeLeft > 0 ? 'white' : 'var(--primary)',
+                backdropFilter: 'blur(8px)',
+              }}>
+              {timeLeft > 0 ? (
+                <>
+                  <span className="text-lg font-black leading-none drop-shadow-sm">{timeLeft < 60 ? timeLeft : fmtTime(timeLeft)}</span>
+                  <span className="text-[9px] font-bold uppercase mt-1 tracking-wider opacity-90">{timerOn ? 'פעיל' : 'מושהה'}</span>
+                </>
+              ) : (
+                <Ic n="clock" size={26}/>
+              )}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* BOTTOM NAVIGATION LAYER */}
+      {!manage && (
+        <nav className="fixed bottom-0 left-0 w-full z-40 flex pb-safe" dir="rtl"
+          style={{ background: 'rgba(6, 6, 10, 0.85)', borderTop: '1px solid var(--border)', backdropFilter: 'blur(20px)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+          <div className="flex w-full max-w-lg mx-auto">
+            {NAV.map(item => {
+              const active = page === item.id && !workout;
+              return (
+                <button key={item.id} onClick={() => { setPage(item.id); setWorkout(null); if (manage) cancelManage(); }}
+                  className="flex-1 py-4 flex flex-col items-center gap-1.5 transition-all btn-press"
+                  style={{ color: active ? 'var(--primary)' : 'rgba(255,255,255,0.35)' }}>
+                  <div className={`transition-transform duration-300 ${active ? 'scale-110 drop-shadow-[0_0_8px_var(--primary-glow)]' : ''}`}>
+                    <Ic n={item.n} size={22}/>
+                  </div>
+                  <span className="text-[10px] font-bold tracking-wide">{item.label}</span>
+                  {active && <div className="absolute top-0 w-8 h-0.5 rounded-b-full" style={{ background: 'var(--primary)', boxShadow: '0 2px 8px var(--primary-glow)' }}/>}
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+      )}
+
+      {/* MANAGE MODE ACTION BAR */}
+      {manage && (
+        <div className="fixed bottom-0 left-0 w-full p-4 z-[150] flex gap-3 slide-up pb-safe"
+          style={{ background: 'rgba(6, 6, 10, 0.95)', borderTop: '1px solid var(--border)', backdropFilter: 'blur(15px)', paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
+          <button onClick={saveManage} className="flex-1 p-4 rounded-2xl font-black flex items-center justify-center gap-2 btn-press bg-emerald-600 text-white shadow-[0_4px_20px_rgba(5,150,105,0.4)]">
+            <Ic n="check" size={20}/> עדכון ושמירה
+          </button>
+          <button onClick={cancelManage} className="flex-1 p-4 rounded-2xl font-black flex items-center justify-center gap-2 btn-press bg-white/5 border border-white/10 text-gray-300">
+            <Ic n="x" size={20}/> ביטול וסגירה
           </button>
         </div>
       )}
 
       {/* FULLSCREEN TIMER MODAL */}
-      {timerOpen && (
+      {timerOpen && prefs.timer && (
         <div className="fixed inset-0 z-[100] flex items-end fade-in" style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(15px)' }}>
-          <div className="w-full rounded-t-[2.5rem] p-8 pb-12 slide-up" dir="rtl" style={{ background: 'var(--surface2)', borderTop: '1px solid var(--border)' }}>
+          <div className="w-full max-w-lg mx-auto rounded-t-[2.5rem] p-8 pb-12 slide-up" dir="rtl" style={{ background: 'var(--surface2)', borderTop: '1px solid var(--border)' }}>
             <div className="flex justify-between items-center mb-6">
               <button onClick={() => { setTimerOpen(false); setTimerMinimized(true); }} className="p-2 bg-white/10 rounded-full btn-press text-gray-300"><Ic n="minimize" size={20}/></button>
               <h3 className="text-xl font-black text-white">טיימר התאוששות</h3>
@@ -523,7 +936,7 @@ function App() {
 
       {/* MODALS */}
       {editEx && <ExerciseEditModal exercise={editEx} onSave={saveEx} onClose={() => setEditEx(null)} />}
-      {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} cats={cats} sched={sched} setSched={setSched} importData={importData} exportData={exportData} theme={theme} setTheme={setTheme} />}
+      {selDate && <DayInfoModal dateInfo={selDate} onClose={() => setSelDate(null)} history={hist} categories={cats} schedule={sched} onUpdateStatus={updateHist} />}
     </div>
   );
 }
