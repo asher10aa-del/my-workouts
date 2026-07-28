@@ -18,7 +18,6 @@
   <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     
-    /* Theme Variables */
     :root {
       --bg: #030305;
       --surface: rgba(15, 15, 20, 0.6);
@@ -68,7 +67,6 @@
     .no-scroll::-webkit-scrollbar { display: none; }
     .no-scroll { -ms-overflow-style: none; scrollbar-width: none; }
     
-    /* Animations */
     @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
     @keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
@@ -88,13 +86,11 @@
     .styled-input { background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-light); color: var(--text); transition: all 0.2s ease; }
     .styled-input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-glow); outline: none; }
 
-    /* Custom Toggle Switch */
     .toggle-checkbox:checked { right: 0; border-color: var(--primary); }
     .toggle-checkbox:checked + .toggle-label { background-color: var(--primary); }
     .toggle-checkbox { right: 0; z-index: 1; border-color: #4b5563; transition: all 0.3s; }
     .toggle-label { background-color: #374151; transition: all 0.3s; }
 
-    /* Drag and Drop styles */
     .dragging { opacity: 0.5; transform: scale(0.98); box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
     .drag-over { border-bottom: 2px solid var(--primary) !important; padding-bottom: 1rem; }
   </style>
@@ -104,14 +100,12 @@
 <script type="text/babel">
 const { useState, useEffect, useMemo, useRef, useCallback } = React;
 
-/* ── STORAGE MANAGEMENT ── */
 const S = {
   get: (k, d) => { try { const v = localStorage.getItem(k); return v != null ? JSON.parse(v) : d; } catch { return d; } },
   set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { console.warn('Storage error', e); } }
 };
-const VER = 'v24'; // Bumped version to v24 for the new features
+const VER = 'v25'; 
 
-/* ── AUDIO SUBSYSTEM ── */
 const playBeep = () => {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -128,21 +122,19 @@ const playBeep = () => {
   } catch(e) { console.warn("Audio Context blocked", e); }
 };
 
-/* ── STATIC DATA ── */
 const MOTIVATIONS = ["משמעת עצמית היא הגשר בין יעדים להישגים.", "השקעה עקבית מניבה תוצאות בלתי רגילות.", "המקצוענות נמדדת ברגעים שבהם אף אחד לא רואה.", "יעילות מירבית דורשת התמדה ומיקוד במטרה."];
 const DAY_NAMES = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 const DAY_LET = ['א','ב','ג','ד','ה','ו','ש'];
 
 const DEF_CATS = [
   {id:'c1', name:'Upper A', hex:'#3b82f6', icon:'dumbbell', exercises:[
-    {id:'h1', name:'דחיקת חזה עליון (סמיט/חופשי)', sets:2, reps:10, weight:'22.5', notes:'', setDetails: [{reps:10, done:false}, {reps:10, done:false}]},
-    {id:'g1', name:'חתירה במכונה (אדומה)', sets:2, reps:10, weight:'37.5', notes:'', setDetails: [{reps:10, done:false}, {reps:10, done:false}]}
+    {id:'h1', name:'דחיקת חזה עליון', sets:2, reps:10, weight:'22.5', notes:'', setDetails: [{reps:10, done:false}, {reps:10, done:false}]},
+    {id:'g1', name:'חתירה במכונה', sets:2, reps:10, weight:'37.5', notes:'', setDetails: [{reps:10, done:false}, {reps:10, done:false}]}
   ]}
 ];
 const DEF_SCHED = {0:'c1', 1:null, 2:null, 3:null, 4:null, 5:null, 6:null};
 const DEF_PREFS = { timer: true, calendar: true, stats: true, setTable: true };
 
-/* ── ICONS LIBRARY ── */
 const ICONS = {
   dumbbell: <><path d="m14.4 14.4-4.8-4.8"/><path d="M18.66 21.48a2 2 0 1 1-2.83-2.83l-1.77 1.77a2 2 0 1 1-2.83-2.83l6.36-6.36a2 2 0 1 1 2.83 2.83l-1.77 1.77a2 2 0 1 1 2.83 2.83z"/><path d="m21.5 21.5-1.4-1.4"/><path d="m3.9 3.9-1.4-1.4"/><path d="M6.4 2.76a2 2 0 1 0-2.83 2.83l1.77-1.77a2 2 0 1 0 2.83 2.83l6.36 6.36a2 2 0 1 0 2.83-2.83l-1.77 1.77a2 2 0 1 0 2.83-2.83z"/></>,
   zap: <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>,
@@ -182,7 +174,6 @@ const Ic = React.memo(({n, size=24, cls='', style={}}) => (
   </svg>
 ));
 
-/* ── STATS CALCULATION ── */
 function calcStats(history) {
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
@@ -212,7 +203,6 @@ function calcStats(history) {
   return { streak, totalDone, monthDone, monthMissed, weeks };
 }
 
-/* ══════════════ COMPONENTS ══════════════ */
 const Toggle = ({ label, checked, onChange, icon }) => (
   <div className="flex items-center justify-between p-3 rounded-xl bg-black/20 border border-white/5 btn-press" onClick={() => onChange(!checked)}>
     <div className="flex items-center gap-2.5">
@@ -229,7 +219,6 @@ const Toggle = ({ label, checked, onChange, icon }) => (
 function ExerciseEditModal({ exercise, onSave, onClose, prefs }) {
   const [d, setD] = useState({ notes: '', setDetails: [], ...exercise });
 
-  // Sync setDetails array with the 'sets' number
   useEffect(() => {
     const numSets = parseInt(d.sets) || 0;
     const currentDetails = d.setDetails || [];
@@ -279,7 +268,6 @@ function ExerciseEditModal({ exercise, onSave, onClose, prefs }) {
               placeholder="למשל: ספסל על שלב 4..." value={d.notes || ''} onChange={e => setD(p => ({ ...p, notes: e.target.value }))} />
           </div>
 
-          {/* New Sets Tracking Table */}
           {prefs.setTable && d.setDetails && d.setDetails.length > 0 && (
             <div className="mt-4 p-4 rounded-xl bg-black/30 border border-white/5">
               <label className="text-xs font-bold mb-3 block text-gray-400 text-center">מעקב חזרות בפועל</label>
@@ -360,13 +348,11 @@ function DayInfoModal({ dateInfo, onClose, history, categories, schedule, onUpda
   );
 }
 
-/* ══════════════ MAIN APPLICATION ══════════════ */
 function App() {
   const [page, setPage] = useState('home');
   const [workout, setWorkout] = useState(null);
   
-  // Data State - Attempting to migrate if v24 is empty but older exists
-  const getInitial = (key, def) => S.get(`wk_${VER}_${key}`, S.get(`wk_v23_${key}`, S.get(`wk_v22_${key}`, S.get(`wk_v21_${key}`, S.get(`workout_v16_${key}`, def)))));
+  const getInitial = (key, def) => S.get(`wk_${VER}_${key}`, S.get(`wk_v24_${key}`, S.get(`wk_v23_${key}`, S.get(`wk_v22_${key}`, S.get(`wk_v21_${key}`, S.get(`workout_v16_${key}`, def))))));
   
   const [cats, setCats] = useState(() => getInitial('cats', DEF_CATS));
   const [hist, setHist] = useState(() => getInitial('hist', {}));
@@ -387,18 +373,14 @@ function App() {
   const [calDate, setCalDate] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [selDate, setSelDate] = useState(null);
   const fileRef = useRef(null);
-
-  // Scroll Position Management
   const scrollPositions = useRef({});
   
   useEffect(() => {
-    // Restore scroll position when page changes
     const pos = scrollPositions.current[`${page}_${workout || 'main'}`] || 0;
     window.scrollTo(0, pos);
   }, [page, workout]);
 
   useEffect(() => {
-    // Save scroll position before unmount/change
     const handleScroll = () => {
       scrollPositions.current[`${page}_${workout || 'main'}`] = window.scrollY;
     };
@@ -407,17 +389,14 @@ function App() {
   }, [page, workout]);
 
 
-  // Apply Theme
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, [theme]);
 
-  // Persist State
   useEffect(() => S.set(`wk_${VER}_cats`, cats), [cats]);
   useEffect(() => S.set(`wk_${VER}_hist`, hist), [hist]);
   useEffect(() => S.set(`wk_${VER}_sched`, sched), [sched]);
   useEffect(() => S.set(`wk_${VER}_theme`, theme), [theme]);
   useEffect(() => S.set(`wk_${VER}_prefs`, prefs), [prefs]);
 
-  // Timer Logic
   useEffect(() => {
     if (!prefs.timer) return; 
     let iv;
@@ -440,7 +419,6 @@ function App() {
   
   const dispCats = manage ? draftCats : cats;
 
-  // Handlers for Manage Mode
   const enterManage = () => { setDraftCats(JSON.parse(JSON.stringify(cats))); setManage(true); };
   const saveManage = () => { setCats(draftCats); setManage(false); setDraftCats(null); };
   const cancelManage = () => { setManage(false); setDraftCats(null); };
@@ -459,28 +437,23 @@ function App() {
     if (n) { const a = [...draftCats]; a[i] = { ...a[i], name: n }; setDraftCats(a); }
   };
   
-  // Drag and Drop logic
   const [draggedItem, setDraggedItem] = useState(null);
-  const [draggedIdx, setDraggedIdx] = useState(null);
 
   const handleDragStart = (e, type, idx, item) => {
     setDraggedItem({ type, idx, item });
-    setDraggedIdx(idx);
-    // Needed for Firefox
-    e.dataTransfer.setData('text/plain', ''); 
+    e.dataTransfer.effectAllowed = "move";
     setTimeout(() => { e.target.classList.add('dragging'); }, 0);
   };
 
   const handleDragEnd = (e) => {
     e.target.classList.remove('dragging');
     setDraggedItem(null);
-    setDraggedIdx(null);
     document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
   };
 
-  const handleDragOver = (e, idx) => {
+  const handleDragOver = (e) => {
     e.preventDefault();
-    if (!draggedItem || draggedItem.idx === idx) return;
+    e.dataTransfer.dropEffect = "move";
     e.currentTarget.classList.add('drag-over');
   };
 
@@ -537,7 +510,7 @@ function App() {
 
   const pasteExercise = () => {
     if (!copiedEx) return;
-    const newEx = { ...copiedEx, id: crypto.randomUUID() }; // new ID
+    const newEx = { ...copiedEx, id: crypto.randomUUID() }; 
     const a = [...draftCats], ci = a.findIndex(c => c.id === workout);
     a[ci] = { ...a[ci], exercises: [...a[ci].exercises, newEx] }; 
     setDraftCats(a);
@@ -553,7 +526,6 @@ function App() {
     setSelDate(null);
   }, []);
 
-  // I/O Methods
   const exportData = () => {
     const blob = new Blob([JSON.stringify({ cats, hist, sched, theme, prefs }, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -578,7 +550,6 @@ function App() {
     }
   };
 
-  /* ── RENDERERS ── */
   const renderCal = useMemo(() => {
     if (!prefs.calendar) return null;
     const dim = new Date(calDate.getFullYear(), calDate.getMonth() + 1, 0).getDate();
@@ -665,7 +636,7 @@ function App() {
                draggable={manage}
                onDragStart={(e) => handleDragStart(e, 'cat', i, cat)}
                onDragEnd={handleDragEnd}
-               onDragOver={(e) => handleDragOver(e, i)}
+               onDragOver={handleDragOver}
                onDragLeave={handleDragLeave}
                onDrop={(e) => handleDrop(e, 'cat', i)}>
             
@@ -698,13 +669,11 @@ function App() {
     const cat = dispCats.find(c => c.id === workout);
     if (!cat) return null;
     
-    // Calculate Summary
     const totalExercises = cat.exercises.length;
     let totalWeight = 0;
     cat.exercises.forEach(ex => {
       const sets = parseInt(ex.sets) || 0;
       const reps = parseInt(ex.reps) || 0;
-      // take first weight if split like "10 / 20"
       const weightStr = (ex.weight || '0').split('/')[0].trim();
       const weight = parseFloat(weightStr) || 0;
       totalWeight += (sets * reps * weight);
@@ -731,7 +700,7 @@ function App() {
                  draggable={manage}
                  onDragStart={(e) => handleDragStart(e, 'ex', idx, ex)}
                  onDragEnd={handleDragEnd}
-                 onDragOver={(e) => handleDragOver(e, idx)}
+                 onDragOver={handleDragOver}
                  onDragLeave={handleDragLeave}
                  onDrop={(e) => handleDrop(e, 'ex', idx)}>
               
@@ -755,7 +724,6 @@ function App() {
                     </div>
                     {ex.notes && <p className="text-xs text-gray-500 italic bg-black/20 p-2 rounded-lg inline-block border border-white/5">{ex.notes}</p>}
                     
-                    {/* Inline view of completed sets if tracked */}
                     {!manage && prefs.setTable && ex.setDetails && ex.setDetails.some(s => s.done) && (
                       <div className="mt-3 flex gap-2 flex-wrap">
                         {ex.setDetails.map((s, i) => s.done && (
@@ -792,7 +760,6 @@ function App() {
           )}
         </div>
 
-        {/* Workout Summary */}
         {!manage && (
           <div className="mt-10 p-6 card2 border-t-4" style={{borderTopColor: cat.hex}}>
             <h3 className="font-black text-sm mb-4 text-white">סיכום אימון משוער</h3>
@@ -863,7 +830,6 @@ function App() {
     <div className="p-5 pb-28 slide-up" dir="rtl">
       <h2 className="text-3xl font-black mt-6 mb-8 text-white px-2">הגדרות מתקדמות</h2>
 
-      {/* Feature Toggles */}
       <div className="card p-6 mb-5">
         <h3 className="font-black text-sm mb-5 flex items-center gap-2.5 text-white">
           <span className="p-1.5 bg-purple-500/10 rounded-lg text-purple-400"><Ic n="settings" size={18}/></span> התאמת ממשק
@@ -876,7 +842,6 @@ function App() {
         </div>
       </div>
 
-      {/* Themes */}
       <div className="card p-6 mb-5">
         <h3 className="font-black text-sm mb-5 flex items-center gap-2.5 text-white">
           <span className="p-1.5 bg-yellow-500/10 rounded-lg text-yellow-400"><Ic n="palette" size={18}/></span> ערכת נושא
@@ -895,7 +860,6 @@ function App() {
         </div>
       </div>
 
-      {/* Schedule */}
       <div className="card p-6 mb-5">
         <h3 className="font-black text-sm mb-5 flex items-center gap-2.5 text-white">
           <span className="p-1.5 bg-blue-500/10 rounded-lg text-blue-400"><Ic n="calendar" size={18}/></span> לוח אימונים קבוע
@@ -921,7 +885,6 @@ function App() {
         </div>
       </div>
 
-      {/* I/O and Danger */}
       <div className="card p-6 mb-5">
         <h3 className="font-black text-sm mb-4 flex items-center gap-2.5 text-white">
           <span className="p-1.5 bg-emerald-500/10 rounded-lg text-emerald-400"><Ic n="download" size={18}/></span> גיבוי וניהול מערכת
@@ -939,6 +902,9 @@ function App() {
           
           <button onClick={() => window.location.reload(true)} className="w-full p-4 rounded-xl font-black flex items-center justify-center gap-2.5 btn-press bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 transition-colors">
             <Ic n="refresh" size={20}/> כפה רענון גרסה מהשרת
+          </button>
+          <button onClick={resetAll} className="w-full p-4 rounded-xl font-black flex items-center justify-center gap-2.5 btn-press bg-rose-500/10 border border-rose-500/30 text-rose-500 hover:bg-rose-500/20 transition-colors mt-3">
+            <Ic n="trash" size={20}/> איפוס מוחלט של המערכת
           </button>
         </div>
       </div>
@@ -959,7 +925,6 @@ function App() {
         {workout ? renderWorkoutDetail() : page === 'home' ? renderHome() : page === 'stats' ? renderStats() : renderSettings()}
       </main>
 
-      {/* FLOAT ACTION TIMER */}
       {!manage && prefs.timer && (
         <div className="fixed z-50 transition-all duration-300" style={{ bottom: '6rem', left: '1.5rem' }}>
           {timerMinimized && timeLeft > 0 && !timerOpen ? (
@@ -991,7 +956,6 @@ function App() {
         </div>
       )}
 
-      {/* BOTTOM NAVIGATION LAYER */}
       {!manage && (
         <nav className="fixed bottom-0 left-0 w-full z-40 flex pb-safe" dir="rtl"
           style={{ background: 'rgba(6, 6, 10, 0.85)', borderTop: '1px solid var(--border)', backdropFilter: 'blur(20px)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
@@ -1014,7 +978,6 @@ function App() {
         </nav>
       )}
 
-      {/* MANAGE MODE ACTION BAR */}
       {manage && (
         <div className="fixed bottom-0 left-0 w-full p-4 z-[150] flex gap-3 slide-up pb-safe"
           style={{ background: 'rgba(6, 6, 10, 0.95)', borderTop: '1px solid var(--border)', backdropFilter: 'blur(15px)', paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
@@ -1027,7 +990,6 @@ function App() {
         </div>
       )}
 
-      {/* FULLSCREEN TIMER MODAL */}
       {timerOpen && prefs.timer && (
         <div className="fixed inset-0 z-[100] flex items-end fade-in" style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(15px)' }}>
           <div className="w-full max-w-lg mx-auto rounded-t-[2.5rem] p-8 pb-12 slide-up" dir="rtl" style={{ background: 'var(--surface2)', borderTop: '1px solid var(--border)' }}>
@@ -1059,7 +1021,6 @@ function App() {
         </div>
       )}
 
-      {/* MODALS */}
       {editEx && <ExerciseEditModal exercise={editEx} onSave={saveEx} onClose={() => setEditEx(null)} prefs={prefs} />}
       {selDate && <DayInfoModal dateInfo={selDate} onClose={() => setSelDate(null)} history={hist} categories={cats} schedule={sched} onUpdateStatus={updateHist} />}
     </div>
