@@ -95,14 +95,12 @@
     .no-scroll::-webkit-scrollbar { display: none; }
     .no-scroll { -ms-overflow-style: none; scrollbar-width: none; }
     
-    @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
     @keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     @keyframes glow { 0%, 100% { box-shadow: 0 0 15px var(--primary-glow); } 50% { box-shadow: 0 0 30px var(--primary-glow); } }
     
-    .slide-up { animation: slideUp 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
-    .fade-in { animation: fadeIn 0.25s ease-out forwards; }
-    .slide-down { animation: slideDown 0.3s ease-out forwards; }
+    .fade-in { animation: fadeIn 0.3s ease-out forwards; will-change: opacity, transform; }
+    .slide-down { animation: slideDown 0.3s ease-out forwards; will-change: opacity, transform; }
     .glow-pulse { animation: glow 2s ease-in-out infinite; }
     
     .btn-press { transition: transform 0.1s ease, filter 0.2s ease; cursor: pointer; }
@@ -118,18 +116,31 @@
     .toggle-checkbox:checked + .toggle-label { background-color: var(--primary); }
     .toggle-checkbox { right: 0; z-index: 1; border-color: #4b5563; transition: all 0.3s; }
     .toggle-label { background-color: #374151; transition: all 0.3s; }
+
+    .touch-dragging { 
+      opacity: 0.8; 
+      transform: scale(1.02); 
+      box-shadow: 0 15px 30px rgba(0,0,0,0.6); 
+      z-index: 50; 
+      position: relative;
+    }
+    .touch-drag-over { 
+      border-bottom: 2px solid var(--primary) !important; 
+      padding-bottom: 1rem; 
+      transition: all 0.2s ease;
+    }
   </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useEffect, useMemo, useRef, useCallback } = React;
+const { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } = React;
 
 const S = {
   get: (k, d) => { try { const v = localStorage.getItem(k); return v != null ? JSON.parse(v) : d; } catch { return d; } },
   set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { console.warn('Storage error', e); } }
 };
-const VER = 'v28';
+const VER = 'v29';
 
 const playBeep = () => {
   try {
@@ -381,53 +392,12 @@ function DayInfoModal({ dateInfo, onClose, history, categories, schedule, onUpda
   );
 }
 
-/* ══════════════ MAIN APPLICATION ══════════════ */
-function App() {
-  const [page, setPage] = useState('home');
-  const [workout, setWorkout] = useState(null);
-  const [isTransitioning, setIsTransitioning] = useState(false);
-  
-  const getInitial = (key, def) => S.get(`wk_${VER}_${key}`, S.get(`wk_v28_${key}`, S.get(`wk_v27_${key}`, S.get(`wk_v26_${key}`, S.get(`wk_v25_${key}`, S.get(`wk_v24_${key}`, S.get(`wk_v16_${key}`, def)))))));
-  
-  const [cats, setCats] = useState(() => getInitial('cats', DEF_CATS));
-  const [hist, setHist] = useState(() => getInitial('hist', {}));
-  const [sched, setSched] = useState(() => getInitial('sched', DEF_SCHED));
-  const [theme, setTheme] = useState(() => getInitial('theme', 'default'));
-  const [prefs, setPrefs] = useState(() => getInitial('prefs', DEF_PREFS));
-
-  const [manage, setManage] = useState(false);
-  const [draftCats, setDraftCats] = useState(null);
-  const [editEx, setEditEx] = useState(null);
-  const [copiedEx, setCopiedEx] = useState(null);
-
+// Timer Widget Component - Extracted for Massive Performance Gain!
+function TimerWidget({ prefs, manageMode }) {
   const [timeLeft, setTimeLeft] = useState(0);
   const [timerOn, setTimerOn] = useState(false);
   const [timerOpen, setTimerOpen] = useState(false);
   const [timerMinimized, setTimerMinimized] = useState(false);
-
-  const [calDate, setCalDate] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
-  const [selDate, setSelDate] = useState(null);
-  const fileRef = useRef(null);
-  const scrollPositions = useRef({});
-  
-  const navigate = (newPage, newWorkout = null) => {
-    scrollPositions.current[`${page}_${workout || 'main'}`] = window.scrollY;
-    setIsTransitioning(true);
-    setPage(newPage);
-    setWorkout(newWorkout);
-    setTimeout(() => {
-      window.scrollTo(0, scrollPositions.current[`${newPage}_${newWorkout || 'main'}`] || 0);
-      setTimeout(() => setIsTransitioning(false), 50);
-    }, 0);
-  };
-
-  useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, [theme]);
-
-  useEffect(() => S.set(`wk_${VER}_cats`, cats), [cats]);
-  useEffect(() => S.set(`wk_${VER}_hist`, hist), [hist]);
-  useEffect(() => S.set(`wk_${VER}_sched`, sched), [sched]);
-  useEffect(() => S.set(`wk_${VER}_theme`, theme), [theme]);
-  useEffect(() => S.set(`wk_${VER}_prefs`, prefs), [prefs]);
 
   useEffect(() => {
     if (timerOpen) document.body.classList.add('modal-open');
@@ -447,6 +417,130 @@ function App() {
 
   const startTimer = useCallback((s) => { setTimeLeft(s); setTimerOn(true); setTimerMinimized(true); setTimerOpen(false); }, []);
   const stopTimer = () => { setTimerOn(false); setTimeLeft(0); setTimerMinimized(false); setTimerOpen(false); };
+  const fmtTime = t => `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+
+  if (!prefs.timer) return null;
+
+  return (
+    <>
+      {!manageMode && (
+        <div className="fixed z-50 transition-all duration-300" style={{ bottom: '6rem', left: '1.5rem' }}>
+          {timerMinimized && timeLeft > 0 && !timerOpen ? (
+            <button onClick={() => { setTimerMinimized(false); setTimerOpen(true); }}
+              className="px-5 py-3 rounded-full font-black text-white shadow-[0_4px_20px_rgba(0,0,0,0.5)] flex items-center gap-2 btn-press"
+              style={{ background: 'var(--primary)', border: '1px solid var(--primary-glow)' }}>
+              <Ic n="clock" size={16}/>
+              <span>{fmtTime(timeLeft)}</span>
+            </button>
+          ) : !timerMinimized && (
+            <button onClick={() => setTimerOpen(true)}
+              className={`flex flex-col items-center justify-center rounded-[1.25rem] btn-press transition-all duration-300 ${timeLeft > 0 ? 'w-16 h-16 glow-pulse' : 'w-14 h-14'}`}
+              style={{
+                background: timeLeft > 0 ? 'linear-gradient(135deg, var(--primary), var(--bg))' : 'var(--surface)',
+                border: `1px solid ${timeLeft > 0 ? 'var(--primary)' : 'var(--border)'}`,
+                boxShadow: timeLeft > 0 ? '0 10px 25px var(--primary-glow)' : '0 4px 15px rgba(0,0,0,0.3)',
+                color: timeLeft > 0 ? 'white' : 'var(--primary)',
+                backdropFilter: 'blur(8px)',
+              }}>
+              {timeLeft > 0 ? (
+                <>
+                  <span className="text-lg font-black leading-none drop-shadow-sm">{timeLeft < 60 ? timeLeft : fmtTime(timeLeft)}</span>
+                  <span className="text-[9px] font-bold uppercase mt-1 tracking-wider opacity-90">{timerOn ? 'פעיל' : 'מושהה'}</span>
+                </>
+              ) : (
+                <Ic n="clock" size={26}/>
+              )}
+            </button>
+          )}
+        </div>
+      )}
+
+      {timerOpen && (
+        <div className="fixed inset-0 z-[100] flex items-end fade-in" style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(15px)' }}>
+          <div className="w-full max-w-lg mx-auto rounded-t-[2.5rem] p-8 pb-12 slide-up" dir="rtl" style={{ background: 'var(--surface2)', borderTop: '1px solid var(--border)' }}>
+            <div className="flex justify-between items-center mb-6">
+              <button onClick={() => { setTimerOpen(false); setTimerMinimized(true); }} className="p-2 bg-white/10 rounded-full btn-press text-gray-300"><Ic n="minimize" size={20}/></button>
+              <h3 className="text-xl font-black text-white">טיימר התאוששות</h3>
+              <div className="w-10"></div>
+            </div>
+            
+            <div className="text-center mb-10 mt-4">
+              <span className={`text-8xl font-black transition-all duration-300 ${timerOn ? 'drop-shadow-lg scale-105' : 'opacity-50'}`} 
+                    style={{ fontVariantNumeric: 'tabular-nums', color: timerOn ? 'var(--primary)' : 'var(--text)' }}>
+                {fmtTime(timeLeft)}
+              </span>
+            </div>
+            
+            <div className="flex justify-center gap-3 mb-8 flex-wrap">
+              {[30, 45, 60, 90, 120].map(s => (
+                <button key={s} onClick={() => startTimer(s)}
+                  className={`w-[70px] h-[70px] rounded-2xl flex flex-col items-center justify-center btn-press border transition-colors`}
+                  style={{
+                    background: timeLeft === s && timerOn ? 'var(--primary)' : 'rgba(0,0,0,0.3)',
+                    borderColor: timeLeft === s && timerOn ? 'transparent' : 'var(--border)',
+                    color: timeLeft === s && timerOn ? 'white' : 'var(--muted)',
+                    boxShadow: timeLeft === s && timerOn ? '0 0 15px var(--primary-glow)' : 'none'
+                  }}>
+                  <span className="text-2xl font-black leading-none">{s < 60 ? s : s/60 + 'm'}</span>
+                </button>
+              ))}
+            </div>
+            
+            <button onClick={stopTimer} className="w-full py-4 rounded-xl font-black btn-press flex items-center justify-center gap-2 bg-rose-500/10 text-rose-500 border border-rose-500/30">
+              <Ic n="stop" size={20}/> עצור ואפס
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+
+/* ══════════════ MAIN APPLICATION ══════════════ */
+function App() {
+  const [page, setPage] = useState('home');
+  const [workout, setWorkout] = useState(null);
+  
+  const getInitial = (key, def) => S.get(`wk_${VER}_${key}`, S.get(`wk_v28_${key}`, S.get(`wk_v27_${key}`, S.get(`wk_v26_${key}`, S.get(`wk_v25_${key}`, S.get(`wk_v16_${key}`, def))))));
+  
+  const [cats, setCats] = useState(() => getInitial('cats', DEF_CATS));
+  const [hist, setHist] = useState(() => getInitial('hist', {}));
+  const [sched, setSched] = useState(() => getInitial('sched', DEF_SCHED));
+  const [theme, setTheme] = useState(() => getInitial('theme', 'default'));
+  const [prefs, setPrefs] = useState(() => getInitial('prefs', DEF_PREFS));
+
+  const [manage, setManage] = useState(false);
+  const [draftCats, setDraftCats] = useState(null);
+  const [editEx, setEditEx] = useState(null);
+  const [copiedEx, setCopiedEx] = useState(null);
+
+  const [calDate, setCalDate] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const [selDate, setSelDate] = useState(null);
+  const fileRef = useRef(null);
+  
+  // FIXED: Scroll restoration using layout effect (before paint) to prevent jumping
+  const scrollPositions = useRef({});
+  
+  const navigate = (newPage, newWorkout = null) => {
+    scrollPositions.current[`${page}_${workout || 'main'}`] = window.scrollY;
+    setPage(newPage);
+    setWorkout(newWorkout);
+  };
+
+  useLayoutEffect(() => {
+    const pos = scrollPositions.current[`${page}_${workout || 'main'}`] || 0;
+    window.scrollTo(0, pos);
+  }, [page, workout]);
+
+
+  useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, [theme]);
+
+  useEffect(() => S.set(`wk_${VER}_cats`, cats), [cats]);
+  useEffect(() => S.set(`wk_${VER}_hist`, hist), [hist]);
+  useEffect(() => S.set(`wk_${VER}_sched`, sched), [sched]);
+  useEffect(() => S.set(`wk_${VER}_theme`, theme), [theme]);
+  useEffect(() => S.set(`wk_${VER}_prefs`, prefs), [prefs]);
 
   const today = new Date();
   const todayKey = today.toISOString().split('T')[0];
@@ -551,11 +645,6 @@ function App() {
     };
     r.readAsText(file); e.target.value = '';
   };
-  const resetAll = () => {
-    if (confirm('אזהרה: פעולה זו תמחק את כל היסטוריית האימונים ותאפס להגדרות יצרן. להמשיך?')) {
-      setCats(DEF_CATS); setHist({}); setSched(DEF_SCHED); alert('מערכת אופסה בהצלחה.');
-    }
-  };
 
   /* ── RENDERERS ── */
   const renderCal = useMemo(() => {
@@ -619,7 +708,7 @@ function App() {
   }, [calDate, hist, cats, sched, today.getMonth(), today.getFullYear(), today.getDate(), prefs.calendar]);
 
   const renderHome = () => (
-    <div className={`flex flex-col gap-5 p-5 pb-28 ${!isTransitioning ? 'fade-in' : ''}`} dir="rtl">
+    <div className="flex flex-col gap-5 p-5 pb-28" dir="rtl">
       <div className="flex justify-between items-center mt-6 px-1">
         <h1 className="text-2xl font-black text-white">האימונים שלי</h1>
         <button onClick={enterManage} className="p-3 rounded-2xl btn-press bg-white/5 border border-white/10 text-gray-300">
@@ -686,7 +775,7 @@ function App() {
     });
 
     return (
-      <div className={`p-5 pb-32 ${!isTransitioning ? 'fade-in' : ''}`} dir="rtl">
+      <div className="p-5 pb-32" dir="rtl">
         <div className="flex justify-between items-center mt-6 mb-8 px-1">
           {!manage ? (
             <button onClick={() => navigate('home', null)} className="flex items-center gap-2 btn-press text-gray-400 bg-white/5 px-4 py-2 rounded-xl">
@@ -787,7 +876,7 @@ function App() {
     const rate = stats.monthDone + stats.monthMissed > 0 ? Math.round((stats.monthDone / (stats.monthDone + stats.monthMissed)) * 100) : 0;
     
     return (
-      <div className={`p-5 pb-28 ${!isTransitioning ? 'slide-up' : ''}`} dir="rtl">
+      <div className="p-5 pb-28" dir="rtl">
         <h2 className="text-3xl font-black mt-6 mb-8 text-white px-2">סטטיסטיקה ומעקב</h2>
 
         <div className="grid grid-cols-2 gap-4 mb-6">
@@ -853,7 +942,7 @@ function App() {
   };
 
   const renderSettings = () => (
-    <div className={`p-5 pb-28 ${!isTransitioning ? 'slide-up' : ''}`} dir="rtl">
+    <div className="p-5 pb-28" dir="rtl">
       <h2 className="text-3xl font-black mt-6 mb-8 text-white px-2">הגדרות מתקדמות</h2>
 
       <div className="card p-6 mb-5">
@@ -942,45 +1031,15 @@ function App() {
     { id: 'settings', n: 'settings', label: 'הגדרות' },
   ];
 
-  const fmtTime = t => `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
-
   return (
     <div className="min-h-screen relative">
       <main className="relative z-10 max-w-lg mx-auto min-h-screen">
-        {workout ? renderWorkoutDetail() : page === 'home' ? renderHome() : page === 'stats' ? renderStats() : renderSettings()}
+        <div key={`${page}_${workout || 'main'}`} className="fade-in w-full h-full">
+           {workout ? renderWorkoutDetail() : page === 'home' ? renderHome() : page === 'stats' ? renderStats() : renderSettings()}
+        </div>
       </main>
 
-      {!manage && prefs.timer && (
-        <div className="fixed z-50 transition-all duration-300" style={{ bottom: '6rem', left: '1.5rem' }}>
-          {timerMinimized && timeLeft > 0 && !timerOpen ? (
-            <button onClick={() => { setTimerMinimized(false); setTimerOpen(true); }}
-              className="px-5 py-3 rounded-full font-black text-white shadow-[0_4px_20px_rgba(0,0,0,0.5)] flex items-center gap-2 btn-press"
-              style={{ background: 'var(--primary)', border: '1px solid var(--primary-glow)' }}>
-              <Ic n="clock" size={16}/>
-              <span>{fmtTime(timeLeft)}</span>
-            </button>
-          ) : !timerMinimized && (
-            <button onClick={() => setTimerOpen(true)}
-              className={`flex flex-col items-center justify-center rounded-[1.25rem] btn-press transition-all duration-300 ${timeLeft > 0 ? 'w-16 h-16 glow-pulse' : 'w-14 h-14'}`}
-              style={{
-                background: timeLeft > 0 ? 'linear-gradient(135deg, var(--primary), var(--bg))' : 'var(--surface)',
-                border: `1px solid ${timeLeft > 0 ? 'var(--primary)' : 'var(--border)'}`,
-                boxShadow: timeLeft > 0 ? '0 10px 25px var(--primary-glow)' : '0 4px 15px rgba(0,0,0,0.3)',
-                color: timeLeft > 0 ? 'white' : 'var(--primary)',
-                backdropFilter: 'blur(8px)',
-              }}>
-              {timeLeft > 0 ? (
-                <>
-                  <span className="text-lg font-black leading-none drop-shadow-sm">{timeLeft < 60 ? timeLeft : fmtTime(timeLeft)}</span>
-                  <span className="text-[9px] font-bold uppercase mt-1 tracking-wider opacity-90">{timerOn ? 'פעיל' : 'מושהה'}</span>
-                </>
-              ) : (
-                <Ic n="clock" size={26}/>
-              )}
-            </button>
-          )}
-        </div>
-      )}
+      <TimerWidget prefs={prefs} manageMode={manage} />
 
       {!manage && (
         <nav className="fixed bottom-0 left-0 w-full z-40 flex pb-safe" dir="rtl"
@@ -1013,44 +1072,6 @@ function App() {
           <button onClick={cancelManage} className="flex-1 p-4 rounded-2xl font-black flex items-center justify-center gap-2 btn-press bg-white/5 border border-white/10 text-gray-300">
             <Ic n="x" size={20}/> ביטול וסגירה
           </button>
-        </div>
-      )}
-
-      {timerOpen && prefs.timer && (
-        <div className="fixed inset-0 z-[100] flex items-end fade-in" style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(15px)' }}>
-          <div className="w-full max-w-lg mx-auto rounded-t-[2.5rem] p-8 pb-12 slide-up" dir="rtl" style={{ background: 'var(--surface2)', borderTop: '1px solid var(--border)' }}>
-            <div className="flex justify-between items-center mb-6">
-              <button onClick={() => { setTimerOpen(false); setTimerMinimized(true); }} className="p-2 bg-white/10 rounded-full btn-press text-gray-300"><Ic n="minimize" size={20}/></button>
-              <h3 className="text-xl font-black text-white">טיימר התאוששות</h3>
-              <div className="w-10"></div>
-            </div>
-            
-            <div className="text-center mb-10 mt-4">
-              <span className={`text-8xl font-black transition-all duration-300 ${timerOn ? 'drop-shadow-lg scale-105' : 'opacity-50'}`} 
-                    style={{ fontVariantNumeric: 'tabular-nums', color: timerOn ? 'var(--primary)' : 'var(--text)' }}>
-                {fmtTime(timeLeft)}
-              </span>
-            </div>
-            
-            <div className="flex justify-center gap-3 mb-8 flex-wrap">
-              {[30, 45, 60, 90, 120].map(s => (
-                <button key={s} onClick={() => startTimer(s)}
-                  className={`w-[70px] h-[70px] rounded-2xl flex flex-col items-center justify-center btn-press border transition-colors`}
-                  style={{
-                    background: timeLeft === s && timerOn ? 'var(--primary)' : 'rgba(0,0,0,0.3)',
-                    borderColor: timeLeft === s && timerOn ? 'transparent' : 'var(--border)',
-                    color: timeLeft === s && timerOn ? 'white' : 'var(--muted)',
-                    boxShadow: timeLeft === s && timerOn ? '0 0 15px var(--primary-glow)' : 'none'
-                  }}>
-                  <span className="text-2xl font-black leading-none">{s < 60 ? s : s/60 + 'm'}</span>
-                </button>
-              ))}
-            </div>
-            
-            <button onClick={stopTimer} className="w-full py-4 rounded-xl font-black btn-press flex items-center justify-center gap-2 bg-rose-500/10 text-rose-500 border border-rose-500/30">
-              <Ic n="stop" size={20}/> עצור ואפס
-            </button>
-          </div>
         </div>
       )}
 
