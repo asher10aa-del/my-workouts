@@ -118,19 +118,6 @@
     .toggle-checkbox:checked + .toggle-label { background-color: var(--primary); }
     .toggle-checkbox { right: 0; z-index: 1; border-color: #4b5563; transition: all 0.3s; }
     .toggle-label { background-color: #374151; transition: all 0.3s; }
-
-    .touch-dragging { 
-      opacity: 0.8; 
-      transform: scale(1.02); 
-      box-shadow: 0 15px 30px rgba(0,0,0,0.6); 
-      z-index: 50; 
-      position: relative;
-    }
-    .touch-drag-over { 
-      border-bottom: 2px solid var(--primary) !important; 
-      padding-bottom: 1rem; 
-      transition: all 0.2s ease;
-    }
   </style>
 </head>
 <body>
@@ -200,7 +187,6 @@ const ICONS = {
   refresh: <><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></>,
   arrowUp: <><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></>,
   arrowDown: <><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></>,
-  drag: <><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></>,
   copy: <><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></>,
   paste: <><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></>
 };
@@ -395,75 +381,13 @@ function DayInfoModal({ dateInfo, onClose, history, categories, schedule, onUpda
   );
 }
 
-function useDraggableList(initialItems, onItemsReordered) {
-  const [items, setItems] = useState(initialItems);
-  const [dragInfo, setDragInfo] = useState({ startIndex: null, currentIndex: null, isDragging: false });
-  const listRef = useRef(null);
-
-  useEffect(() => { setItems(initialItems); }, [initialItems]);
-
-  const handleStart = (e, index) => {
-    setDragInfo({ startIndex: index, currentIndex: index, isDragging: true });
-    if (e.type === 'touchstart') document.body.style.overflow = 'hidden';
-  };
-
-  const handleMove = useCallback((e) => {
-    if (!dragInfo.isDragging || !listRef.current) return;
-    if (e.type === 'touchmove') e.preventDefault();
-
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    const elements = Array.from(listRef.current.children);
-    
-    let overIndex = -1;
-    for (let i = 0; i < elements.length; i++) {
-      const rect = elements[i].getBoundingClientRect();
-      const mid = rect.top + rect.height / 2;
-      if (clientY < mid) { overIndex = i; break; }
-    }
-    if (overIndex === -1) overIndex = elements.length - 1;
-
-    if (overIndex !== dragInfo.currentIndex) {
-      setDragInfo(prev => ({ ...prev, currentIndex: overIndex }));
-      const newItems = [...items];
-      const [draggedItem] = newItems.splice(dragInfo.currentIndex, 1);
-      newItems.splice(overIndex, 0, draggedItem);
-      setItems(newItems);
-    }
-  }, [dragInfo, items]);
-
-  const handleEnd = useCallback(() => {
-    if (!dragInfo.isDragging) return;
-    document.body.style.overflow = '';
-    setDragInfo({ startIndex: null, currentIndex: null, isDragging: false });
-    if (onItemsReordered) onItemsReordered(items);
-  }, [dragInfo.isDragging, items, onItemsReordered]);
-
-  useEffect(() => {
-    if (dragInfo.isDragging) {
-      window.addEventListener('touchmove', handleMove, { passive: false });
-      window.addEventListener('touchend', handleEnd);
-      window.addEventListener('mousemove', handleMove);
-      window.addEventListener('mouseup', handleEnd);
-    }
-    return () => {
-      window.removeEventListener('touchmove', handleMove);
-      window.removeEventListener('touchend', handleEnd);
-      window.removeEventListener('mousemove', handleMove);
-      window.removeEventListener('mouseup', handleEnd);
-    };
-  }, [dragInfo.isDragging, handleMove, handleEnd]);
-
-  return { items, listRef, dragInfo, handleStart };
-}
-
-
 /* ══════════════ MAIN APPLICATION ══════════════ */
 function App() {
   const [page, setPage] = useState('home');
   const [workout, setWorkout] = useState(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
   
-  const getInitial = (key, def) => S.get(`wk_${VER}_${key}`, S.get(`wk_v27_${key}`, S.get(`wk_v26_${key}`, S.get(`wk_v25_${key}`, S.get(`wk_v24_${key}`, S.get(`wk_v16_${key}`, def))))));
+  const getInitial = (key, def) => S.get(`wk_${VER}_${key}`, S.get(`wk_v28_${key}`, S.get(`wk_v27_${key}`, S.get(`wk_v26_${key}`, S.get(`wk_v25_${key}`, S.get(`wk_v24_${key}`, S.get(`wk_v16_${key}`, def)))))));
   
   const [cats, setCats] = useState(() => getInitial('cats', DEF_CATS));
   const [hist, setHist] = useState(() => getInitial('hist', {}));
@@ -510,7 +434,6 @@ function App() {
     else document.body.classList.remove('modal-open');
   }, [timerOpen]);
 
-
   useEffect(() => {
     if (!prefs.timer) return; 
     let iv;
@@ -551,9 +474,11 @@ function App() {
     if (n) { const a = [...draftCats]; a[i] = { ...a[i], name: n }; setDraftCats(a); }
   };
   
-  const { items: draggCats, listRef: catsListRef, dragInfo: catsDragInfo, handleStart: handleCatDragStart } = useDraggableList(dispCats, (reordered) => {
-    if (manage) setDraftCats(reordered);
-  });
+  const moveCat = (i, dir) => {
+    const a = [...draftCats], j = i + dir;
+    if (j < 0 || j >= a.length) return;
+    [a[i], a[j]] = [a[j], a[i]]; setDraftCats(a);
+  };
 
   const addEx = () => {
     const a = [...draftCats], ci = a.findIndex(c => c.id === workout);
@@ -566,6 +491,13 @@ function App() {
       const a = [...draftCats], ci = a.findIndex(c => c.id === workout);
       a[ci] = { ...a[ci], exercises: a[ci].exercises.filter(e => e.id !== id) }; setDraftCats(a);
     }
+  };
+
+  const moveEx = (i, dir) => {
+    const a = [...draftCats], ci = a.findIndex(c => c.id === workout);
+    const exs = [...a[ci].exercises], j = i + dir;
+    if (j < 0 || j >= exs.length) return;
+    [exs[i], exs[j]] = [exs[j], exs[i]]; a[ci] = { ...a[ci], exercises: exs }; setDraftCats(a);
   };
 
   const saveEx = (upd) => {
@@ -705,32 +637,28 @@ function App() {
         )}
       </div>
 
-      <div className="grid gap-3" ref={catsListRef}>
+      <div className="grid gap-3">
         <h3 className="text-sm font-black text-gray-300 mt-2">כל האימונים</h3>
-        {(manage ? draggCats : cats).map((cat, i) => {
-           const isDragging = catsDragInfo.currentIndex === i && catsDragInfo.isDragging;
-           return (
-            <div key={cat.id} className={`flex items-center gap-2 transition-all ${isDragging ? 'touch-dragging' : ''}`}>
-              {manage && (
-                <div className="p-4 cursor-grab text-gray-500 opacity-70 hover:opacity-100 touch-none"
-                     onMouseDown={(e) => handleCatDragStart(e, i)}
-                     onTouchStart={(e) => handleCatDragStart(e, i)}>
-                  <Ic n="drag" size={24}/>
-                </div>
-              )}
-              
-              <button onClick={() => manage ? renameCat(i) : navigate('home', cat.id)}
-                className={`flex-1 flex items-center justify-between p-5 rounded-2xl btn-press transition-all ${manage ? 'border-blue-500/50 bg-blue-500/5' : 'card'}`}>
-                <div className="flex items-center gap-4">
-                  <span className="p-3 rounded-xl shadow-inner" style={{ background: 'rgba(0,0,0,0.4)', color: cat.hex }}><Ic n={cat.icon} size={22}/></span>
-                  <span className="text-lg font-black text-white">{cat.name}</span>
-                </div>
-                {manage ? <Ic n="edit" size={20} style={{ color: 'var(--primary)' }}/> : <Ic n="arrowLeft" size={20} style={{ color: 'rgba(255,255,255,0.2)' }}/>}
-              </button>
-              {manage && <button onClick={() => delCat(i)} className="p-5 rounded-2xl btn-press bg-rose-500/10 text-rose-500 border border-rose-500/20"><Ic n="trash" size={20}/></button>}
-            </div>
-          );
-        })}
+        {(manage ? draftCats : cats).map((cat, i) => (
+          <div key={cat.id} className="flex items-center gap-2 transition-all">
+            {manage && (
+              <div className="flex flex-col gap-1">
+                <button onClick={() => moveCat(i, -1)} className="p-2 rounded-lg btn-press bg-white/5 text-gray-400"><Ic n="arrowUp" size={16}/></button>
+                <button onClick={() => moveCat(i, 1)} className="p-2 rounded-lg btn-press bg-white/5 text-gray-400"><Ic n="arrowDown" size={16}/></button>
+              </div>
+            )}
+            
+            <button onClick={() => manage ? renameCat(i) : navigate('home', cat.id)}
+              className={`flex-1 flex items-center justify-between p-5 rounded-2xl btn-press transition-all ${manage ? 'border-blue-500/50 bg-blue-500/5' : 'card'}`}>
+              <div className="flex items-center gap-4">
+                <span className="p-3 rounded-xl shadow-inner" style={{ background: 'rgba(0,0,0,0.4)', color: cat.hex }}><Ic n={cat.icon} size={22}/></span>
+                <span className="text-lg font-black text-white">{cat.name}</span>
+              </div>
+              {manage ? <Ic n="edit" size={20} style={{ color: 'var(--primary)' }}/> : <Ic n="arrowLeft" size={20} style={{ color: 'rgba(255,255,255,0.2)' }}/>}
+            </button>
+            {manage && <button onClick={() => delCat(i)} className="p-5 rounded-2xl btn-press bg-rose-500/10 text-rose-500 border border-rose-500/20"><Ic n="trash" size={20}/></button>}
+          </div>
+        ))}
         {manage && (
           <button onClick={addCat} className="w-full mt-2 p-5 rounded-2xl font-bold flex flex-col items-center gap-2 btn-press border-2 border-dashed border-white/20 text-gray-400 hover:text-white hover:border-white/40 transition-colors">
             <Ic n="plus" size={24}/> הוסף אימון חדש
@@ -745,17 +673,7 @@ function App() {
     const cat = dispCats.find(c => c.id === workout);
     if (!cat) return null;
     
-    // Create the draggable list hook ONLY for manage mode, otherwise it will try to reorder standard list
-    const { items: draggExs, listRef: exListRef, dragInfo: exDragInfo, handleStart: handleExDragStart } = useDraggableList(cat.exercises, (reordered) => {
-      if (manage) {
-         const newCats = [...draftCats];
-         const ci = newCats.findIndex(c => c.id === workout);
-         newCats[ci].exercises = reordered;
-         setDraftCats(newCats);
-      }
-    });
-
-    const exercisesToRender = manage ? draggExs : cat.exercises;
+    const exercisesToRender = manage ? cat.exercises : cat.exercises;
 
     const totalExercises = cat.exercises.length;
     let totalWeight = 0;
@@ -782,56 +700,52 @@ function App() {
 
         <h2 className="text-4xl font-black text-white mb-6 px-2">{cat.name}</h2>
 
-        <div className="space-y-4" ref={manage ? exListRef : null}>
-          {exercisesToRender.map((ex, idx) => {
-             const isDragging = manage && exDragInfo.currentIndex === idx && exDragInfo.isDragging;
-             return (
-              <div key={ex.id} className={`flex gap-2 transition-all ${isDragging ? 'touch-dragging' : ''}`}>
-                
-                {manage && (
-                  <div className="p-2 cursor-grab text-gray-500 flex flex-col justify-center opacity-70 hover:opacity-100 touch-none"
-                       onMouseDown={(e) => handleExDragStart(e, idx)}
-                       onTouchStart={(e) => handleExDragStart(e, idx)}>
-                    <Ic n="drag" size={24}/>
-                  </div>
-                )}
+        <div className="space-y-4">
+          {exercisesToRender.map((ex, idx) => (
+            <div key={ex.id} className="flex gap-2 transition-all">
+              
+              {manage && (
+                <div className="flex flex-col gap-1 justify-center">
+                  <button onClick={() => moveEx(idx, -1)} className="p-2.5 rounded-xl btn-press bg-white/5 text-gray-400"><Ic n="arrowUp" size={16}/></button>
+                  <button onClick={() => moveEx(idx, 1)} className="p-2.5 rounded-xl btn-press bg-white/5 text-gray-400"><Ic n="arrowDown" size={16}/></button>
+                </div>
+              )}
 
-                <div className={`flex-1 p-5 rounded-2xl relative overflow-hidden flex flex-col transition-colors btn-press ${manage ? 'bg-blue-500/10 border border-blue-500/30' : 'card'}`}
-                     onClick={(e) => { e.stopPropagation(); setEditEx(ex); }}>
-                  <div className="absolute top-0 right-0 w-1.5 h-full opacity-60 rounded-l-full" style={{ backgroundColor: cat.hex }}/>
-                  
-                  <div className="flex justify-between items-start pr-3">
-                     <div className="flex-1">
-                      <h4 className="font-black text-lg mb-2 text-white">{ex.name}</h4>
-                      <div className="flex gap-5 text-sm mb-2">
-                        <span className="text-gray-400 font-bold">{ex.sets} <span className="text-[10px]">סטים</span></span>
-                        <span className="text-gray-400 font-bold">{ex.reps} <span className="text-[10px]">חזרות</span></span>
-                        <span className="font-black drop-shadow-sm" style={{ color: cat.hex }}>{ex.weight} <span className="text-[10px]">ק"ג</span></span>
-                      </div>
-                      {ex.notes && <p className="text-xs text-gray-500 italic bg-black/20 p-2 rounded-lg inline-block border border-white/5">{ex.notes}</p>}
-                      
-                      {!manage && prefs.setTable && ex.setDetails && ex.setDetails.some(s => s.done) && (
-                        <div className="mt-3 flex gap-2 flex-wrap">
-                          {ex.setDetails.map((s, i) => s.done && (
-                             <span key={i} className="text-[10px] font-bold px-2 py-1 rounded-md bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                               סט {i+1}: {s.reps} חז'
-                             </span>
-                          ))}
-                        </div>
-                      )}
+              <div className={`flex-1 p-5 rounded-2xl relative overflow-hidden flex flex-col transition-colors btn-press ${manage ? 'bg-blue-500/10 border border-blue-500/30' : 'card'}`}
+                   onClick={(e) => { e.stopPropagation(); setEditEx(ex); }}>
+                <div className="absolute top-0 right-0 w-1.5 h-full opacity-60 rounded-l-full" style={{ backgroundColor: cat.hex }}/>
+                
+                <div className="flex justify-between items-start pr-3">
+                   <div className="flex-1">
+                    <h4 className="font-black text-lg mb-2 text-white">{ex.name}</h4>
+                    <div className="flex gap-5 text-sm mb-2">
+                      <span className="text-gray-400 font-bold">{ex.sets} <span className="text-[10px]">סטים</span></span>
+                      <span className="text-gray-400 font-bold">{ex.reps} <span className="text-[10px]">חזרות</span></span>
+                      <span className="font-black drop-shadow-sm" style={{ color: cat.hex }}>{ex.weight} <span className="text-[10px]">ק"ג</span></span>
                     </div>
+                    {ex.notes && <p className="text-xs text-gray-500 italic bg-black/20 p-2 rounded-lg inline-block border border-white/5">{ex.notes}</p>}
                     
-                    {manage && (
-                      <div className="flex gap-2">
-                         <button onClick={(e) => { e.stopPropagation(); copyExercise(ex); }} className="p-2.5 rounded-xl btn-press bg-white/5 text-gray-400"><Ic n="copy" size={18}/></button>
-                         <button onClick={(e) => { e.stopPropagation(); delEx(ex.id); }} className="p-2.5 rounded-xl btn-press bg-rose-500/10 text-rose-500 border border-rose-500/20"><Ic n="trash" size={18}/></button>
+                    {!manage && prefs.setTable && ex.setDetails && ex.setDetails.some(s => s.done) && (
+                      <div className="mt-3 flex gap-2 flex-wrap">
+                        {ex.setDetails.map((s, i) => s.done && (
+                           <span key={i} className="text-[10px] font-bold px-2 py-1 rounded-md bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                             סט {i+1}: {s.reps} חז'
+                           </span>
+                        ))}
                       </div>
                     )}
                   </div>
+                  
+                  {manage && (
+                    <div className="flex gap-2">
+                       <button onClick={(e) => { e.stopPropagation(); copyExercise(ex); }} className="p-2.5 rounded-xl btn-press bg-white/5 text-gray-400"><Ic n="copy" size={18}/></button>
+                       <button onClick={(e) => { e.stopPropagation(); delEx(ex.id); }} className="p-2.5 rounded-xl btn-press bg-rose-500/10 text-rose-500 border border-rose-500/20"><Ic n="trash" size={18}/></button>
+                    </div>
+                  )}
                 </div>
               </div>
-            );
-          })}
+            </div>
+          ))}
           
           {manage && (
             <div className="flex gap-2 mt-4">
