@@ -45,21 +45,50 @@
       --primary: #06b6d4;
       --primary-glow: rgba(6, 182, 212, 0.4);
     }
+
+    [data-theme="cherry"] {
+      --bg: #2e0219;
+      --surface: rgba(76, 5, 25, 0.6);
+      --surface2: rgba(112, 11, 39, 0.8);
+      --primary: #f43f5e;
+      --primary-glow: rgba(244, 63, 94, 0.4);
+    }
+
+    [data-theme="sunset"] {
+      --bg: #1e1b4b;
+      --surface: rgba(49, 46, 129, 0.6);
+      --surface2: rgba(67, 56, 202, 0.8);
+      --primary: #f59e0b;
+      --primary-glow: rgba(245, 158, 11, 0.4);
+    }
     
-    html, body {
+    html {
+      margin: 0; padding: 0;
+      background-color: var(--bg);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    
+    body {
       margin: 0; padding: 0; 
-      background-color: var(--bg); 
       color: var(--text); 
       font-family: 'Heebo', system-ui, sans-serif; 
       min-height: 100vh; 
       overflow-x: hidden;
       transition: background-color 0.5s ease;
     }
+
+    /* Prevent background scrolling when modals are open */
+    body.modal-open {
+      overflow: hidden;
+      position: fixed;
+      width: 100%;
+    }
     
     body::before {
       content: ''; position: fixed; inset: 0;
       background: radial-gradient(circle at 80% 0%, var(--primary-glow) 0%, transparent 40%),
-                  radial-gradient(circle at 20% 100%, rgba(244, 63, 94, 0.1) 0%, transparent 40%);
+                  radial-gradient(circle at 20% 100%, rgba(255, 255, 255, 0.05) 0%, transparent 40%);
       pointer-events: none; z-index: 0; transition: background 0.5s ease;
     }
 
@@ -67,13 +96,14 @@
     .no-scroll::-webkit-scrollbar { display: none; }
     .no-scroll { -ms-overflow-style: none; scrollbar-width: none; }
     
+    /* Animations */
     @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-    @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     @keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     @keyframes glow { 0%, 100% { box-shadow: 0 0 15px var(--primary-glow); } 50% { box-shadow: 0 0 30px var(--primary-glow); } }
     
     .slide-up { animation: slideUp 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
-    .fade-in { animation: fadeIn 0.3s ease-out forwards; }
+    .fade-in { animation: fadeIn 0.25s ease-out forwards; }
     .slide-down { animation: slideDown 0.3s ease-out forwards; }
     .glow-pulse { animation: glow 2s ease-in-out infinite; }
     
@@ -91,8 +121,19 @@
     .toggle-checkbox { right: 0; z-index: 1; border-color: #4b5563; transition: all 0.3s; }
     .toggle-label { background-color: #374151; transition: all 0.3s; }
 
-    .dragging { opacity: 0.5; transform: scale(0.98); box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-    .drag-over { border-bottom: 2px solid var(--primary) !important; padding-bottom: 1rem; }
+    /* Mobile Touch Drag styles */
+    .touch-dragging { 
+      opacity: 0.8; 
+      transform: scale(1.02); 
+      box-shadow: 0 15px 30px rgba(0,0,0,0.6); 
+      z-index: 50; 
+      position: relative;
+    }
+    .touch-drag-over { 
+      border-bottom: 2px solid var(--primary) !important; 
+      padding-bottom: 1rem; 
+      transition: all 0.2s ease;
+    }
   </style>
 </head>
 <body>
@@ -104,7 +145,7 @@ const S = {
   get: (k, d) => { try { const v = localStorage.getItem(k); return v != null ? JSON.parse(v) : d; } catch { return d; } },
   set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { console.warn('Storage error', e); } }
 };
-const VER = 'v25'; 
+const VER = 'v26';
 
 const playBeep = () => {
   try {
@@ -128,8 +169,8 @@ const DAY_LET = ['א','ב','ג','ד','ה','ו','ש'];
 
 const DEF_CATS = [
   {id:'c1', name:'Upper A', hex:'#3b82f6', icon:'dumbbell', exercises:[
-    {id:'h1', name:'דחיקת חזה עליון', sets:2, reps:10, weight:'22.5', notes:'', setDetails: [{reps:10, done:false}, {reps:10, done:false}]},
-    {id:'g1', name:'חתירה במכונה', sets:2, reps:10, weight:'37.5', notes:'', setDetails: [{reps:10, done:false}, {reps:10, done:false}]}
+    {id:'h1', name:'דחיקת חזה עליון (סמיט/חופשי)', sets:2, reps:10, weight:'22.5', notes:'', setDetails: [{reps:10, done:false}, {reps:10, done:false}]},
+    {id:'g1', name:'חתירה במכונה (אדומה)', sets:2, reps:10, weight:'37.5', notes:'', setDetails: [{reps:10, done:false}, {reps:10, done:false}]}
   ]}
 ];
 const DEF_SCHED = {0:'c1', 1:null, 2:null, 3:null, 4:null, 5:null, 6:null};
@@ -220,6 +261,11 @@ function ExerciseEditModal({ exercise, onSave, onClose, prefs }) {
   const [d, setD] = useState({ notes: '', setDetails: [], ...exercise });
 
   useEffect(() => {
+    document.body.classList.add('modal-open');
+    return () => document.body.classList.remove('modal-open');
+  }, []);
+
+  useEffect(() => {
     const numSets = parseInt(d.sets) || 0;
     const currentDetails = d.setDetails || [];
     if (numSets > currentDetails.length) {
@@ -241,11 +287,11 @@ function ExerciseEditModal({ exercise, onSave, onClose, prefs }) {
   
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-5 fade-in" style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)' }}>
-      <div className="card w-full max-w-sm p-7 relative slide-down max-h-[90vh] overflow-y-auto no-scroll" dir="rtl">
-        <button onClick={onClose} className="absolute top-4 left-4 p-2 rounded-xl btn-press" style={{ color: 'var(--muted)', background: 'rgba(255,255,255,0.05)' }}>
+      <div className="card w-full max-w-sm p-7 relative slide-down max-h-[90vh] overflow-y-auto no-scroll" dir="rtl" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className="absolute top-4 left-4 p-2 rounded-xl btn-press z-10" style={{ color: 'var(--muted)', background: 'rgba(255,255,255,0.05)' }}>
           <Ic n="x" size={18}/>
         </button>
-        <h3 className="text-xl font-black text-center mb-6 text-white">עריכת תרגיל</h3>
+        <h3 className="text-xl font-black text-center mb-6 text-white pt-2">עריכת תרגיל</h3>
         <div className="space-y-4">
           <div>
             <label className="text-xs font-bold mb-2 block text-gray-400">שם התרגיל</label>
@@ -278,7 +324,7 @@ function ExerciseEditModal({ exercise, onSave, onClose, prefs }) {
                     <input type="number" placeholder="חזרות" className="flex-1 p-2 rounded-lg styled-input text-center font-bold text-sm"
                            value={setInfo.reps} onChange={(e) => updateSetDetail(idx, 'reps', e.target.value)} />
                     <button onClick={() => updateSetDetail(idx, 'done', !setInfo.done)}
-                            className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${setInfo.done ? 'bg-emerald-600 text-white' : 'bg-white/5 text-gray-500'}`}>
+                            className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors btn-press ${setInfo.done ? 'bg-emerald-600 text-white' : 'bg-white/5 text-gray-500'}`}>
                       <Ic n="check" size={16} />
                     </button>
                   </div>
@@ -297,6 +343,11 @@ function ExerciseEditModal({ exercise, onSave, onClose, prefs }) {
 }
 
 function DayInfoModal({ dateInfo, onClose, history, categories, schedule, onUpdateStatus }) {
+  useEffect(() => {
+    document.body.classList.add('modal-open');
+    return () => document.body.classList.remove('modal-open');
+  }, []);
+
   if (!dateInfo) return null;
   const dateObj = dateInfo.date;
   const dateStr = dateObj.toISOString().split('T')[0];
@@ -306,8 +357,8 @@ function DayInfoModal({ dateInfo, onClose, history, categories, schedule, onUpda
   const label = dateObj.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-5 fade-in" style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }}>
-      <div className="card w-full max-w-sm p-6 relative text-center slide-down">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-5 fade-in" style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }} onClick={onClose}>
+      <div className="card w-full max-w-sm p-6 relative text-center slide-down" onClick={(e) => e.stopPropagation()}>
         <button onClick={onClose} className="absolute top-4 left-4 p-2 rounded-xl btn-press" style={{ color: 'var(--muted)', background: 'rgba(255,255,255,0.05)' }}>
           <Ic n="x" size={18}/>
         </button>
@@ -325,19 +376,19 @@ function DayInfoModal({ dateInfo, onClose, history, categories, schedule, onUpda
         </div>
         
         <div className="flex gap-3 mb-4">
-          <button onClick={() => onUpdateStatus(dateStr, 'done', selId)}
+          <button onClick={() => { onUpdateStatus(dateStr, 'done', selId); onClose(); }}
             className={`flex-1 p-4 rounded-xl font-black flex flex-col items-center gap-1.5 btn-press transition-all ${record?.status === 'done' ? 'text-white' : 'text-emerald-400'}`}
             style={{ background: record?.status === 'done' ? '#059669' : 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)' }}>
             <Ic n="check" size={22}/><span className="text-xs">בוצע בהצלחה</span>
           </button>
-          <button onClick={() => onUpdateStatus(dateStr, 'missed', selId)}
+          <button onClick={() => { onUpdateStatus(dateStr, 'missed', selId); onClose(); }}
             className={`flex-1 p-4 rounded-xl font-black flex flex-col items-center gap-1.5 btn-press transition-all ${record?.status === 'missed' ? 'text-white' : 'text-rose-400'}`}
             style={{ background: record?.status === 'missed' ? '#e11d48' : 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.3)' }}>
             <Ic n="x" size={22}/><span className="text-xs">דולג / מנוחה</span>
           </button>
         </div>
         {record && (
-          <button onClick={() => onUpdateStatus(dateStr, null, null)}
+          <button onClick={() => { onUpdateStatus(dateStr, null, null); onClose(); }}
             className="w-full p-3.5 rounded-xl font-bold btn-press mt-2 text-sm"
             style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--muted)' }}>
             איפוס רישום ליום זה
@@ -348,11 +399,93 @@ function DayInfoModal({ dateInfo, onClose, history, categories, schedule, onUpda
   );
 }
 
+// ── CUSTOM HOOK FOR DRAG AND DROP (TOUCH + MOUSE) ──
+function useDraggableList(initialItems, onItemsReordered) {
+  const [items, setItems] = useState(initialItems);
+  const [dragInfo, setDragInfo] = useState({ startIndex: null, currentIndex: null, isDragging: false });
+  const listRef = useRef(null);
+
+  useEffect(() => { setItems(initialItems); }, [initialItems]);
+
+  const handleStart = (e, index) => {
+    // Only allow drag if clicking on the drag handle (we check this in the element)
+    setDragInfo({ startIndex: index, currentIndex: index, isDragging: true });
+    
+    if (e.type === 'touchstart') {
+      // Prevent default scrolling when grabbing the handle
+      document.body.style.overflow = 'hidden';
+    }
+  };
+
+  const handleMove = useCallback((e) => {
+    if (!dragInfo.isDragging || !listRef.current) return;
+    
+    // Prevent scrolling while dragging
+    if (e.type === 'touchmove') e.preventDefault();
+
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const elements = Array.from(listRef.current.children);
+    
+    let overIndex = -1;
+    for (let i = 0; i < elements.length; i++) {
+      const rect = elements[i].getBoundingClientRect();
+      const mid = rect.top + rect.height / 2;
+      if (clientY < mid) {
+        overIndex = i;
+        break;
+      }
+    }
+    if (overIndex === -1) overIndex = elements.length - 1;
+
+    if (overIndex !== dragInfo.currentIndex) {
+      setDragInfo(prev => ({ ...prev, currentIndex: overIndex }));
+      
+      // Visual reorder preview
+      const newItems = [...items];
+      const [draggedItem] = newItems.splice(dragInfo.currentIndex, 1);
+      newItems.splice(overIndex, 0, draggedItem);
+      setItems(newItems);
+    }
+  }, [dragInfo, items]);
+
+  const handleEnd = useCallback(() => {
+    if (!dragInfo.isDragging) return;
+    document.body.style.overflow = '';
+    setDragInfo({ startIndex: null, currentIndex: null, isDragging: false });
+    if (onItemsReordered) onItemsReordered(items);
+  }, [dragInfo.isDragging, items, onItemsReordered]);
+
+  useEffect(() => {
+    if (dragInfo.isDragging) {
+      window.addEventListener('touchmove', handleMove, { passive: false });
+      window.addEventListener('touchend', handleEnd);
+      window.addEventListener('mousemove', handleMove);
+      window.addEventListener('mouseup', handleEnd);
+    } else {
+      window.removeEventListener('touchmove', handleMove);
+      window.removeEventListener('touchend', handleEnd);
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleEnd);
+    }
+    return () => {
+      window.removeEventListener('touchmove', handleMove);
+      window.removeEventListener('touchend', handleEnd);
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleEnd);
+    };
+  }, [dragInfo.isDragging, handleMove, handleEnd]);
+
+  return { items, listRef, dragInfo, handleStart };
+}
+
+
+/* ══════════════ MAIN APPLICATION ══════════════ */
 function App() {
   const [page, setPage] = useState('home');
   const [workout, setWorkout] = useState(null);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   
-  const getInitial = (key, def) => S.get(`wk_${VER}_${key}`, S.get(`wk_v24_${key}`, S.get(`wk_v23_${key}`, S.get(`wk_v22_${key}`, S.get(`wk_v21_${key}`, S.get(`workout_v16_${key}`, def))))));
+  const getInitial = (key, def) => S.get(`wk_${VER}_${key}`, S.get(`wk_v25_${key}`, S.get(`wk_v24_${key}`, S.get(`wk_v23_${key}`, S.get(`wk_v22_${key}`, def)))));
   
   const [cats, setCats] = useState(() => getInitial('cats', DEF_CATS));
   const [hist, setHist] = useState(() => getInitial('hist', {}));
@@ -373,20 +506,27 @@ function App() {
   const [calDate, setCalDate] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [selDate, setSelDate] = useState(null);
   const fileRef = useRef(null);
+
+  // Scroll Position Management - FIXED
   const scrollPositions = useRef({});
   
-  useEffect(() => {
-    const pos = scrollPositions.current[`${page}_${workout || 'main'}`] || 0;
-    window.scrollTo(0, pos);
-  }, [page, workout]);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      scrollPositions.current[`${page}_${workout || 'main'}`] = window.scrollY;
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [page, workout]);
+  const navigate = (newPage, newWorkout = null) => {
+    // Save current position
+    scrollPositions.current[`${page}_${workout || 'main'}`] = window.scrollY;
+    
+    // Disable transition animations temporarily to prevent jumping
+    setIsTransitioning(true);
+    setPage(newPage);
+    setWorkout(newWorkout);
+    
+    // Restore new position immediately without animation
+    setTimeout(() => {
+      const pos = scrollPositions.current[`${newPage}_${newWorkout || 'main'}`] || 0;
+      window.scrollTo(0, pos);
+      // Re-enable animations after a short delay
+      setTimeout(() => setIsTransitioning(false), 50);
+    }, 0);
+  };
 
 
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, [theme]);
@@ -396,6 +536,13 @@ function App() {
   useEffect(() => S.set(`wk_${VER}_sched`, sched), [sched]);
   useEffect(() => S.set(`wk_${VER}_theme`, theme), [theme]);
   useEffect(() => S.set(`wk_${VER}_prefs`, prefs), [prefs]);
+
+  // Modal body lock for Timer
+  useEffect(() => {
+    if (timerOpen) document.body.classList.add('modal-open');
+    else document.body.classList.remove('modal-open');
+  }, [timerOpen]);
+
 
   useEffect(() => {
     if (!prefs.timer) return; 
@@ -437,47 +584,10 @@ function App() {
     if (n) { const a = [...draftCats]; a[i] = { ...a[i], name: n }; setDraftCats(a); }
   };
   
-  const [draggedItem, setDraggedItem] = useState(null);
-
-  const handleDragStart = (e, type, idx, item) => {
-    setDraggedItem({ type, idx, item });
-    e.dataTransfer.effectAllowed = "move";
-    setTimeout(() => { e.target.classList.add('dragging'); }, 0);
-  };
-
-  const handleDragEnd = (e) => {
-    e.target.classList.remove('dragging');
-    setDraggedItem(null);
-    document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    e.currentTarget.classList.add('drag-over');
-  };
-
-  const handleDragLeave = (e) => {
-    e.currentTarget.classList.remove('drag-over');
-  };
-
-  const handleDrop = (e, targetType, targetIdx) => {
-    e.preventDefault();
-    e.currentTarget.classList.remove('drag-over');
-    if (!draggedItem || draggedItem.type !== targetType || draggedItem.idx === targetIdx) return;
-
-    const newCats = [...draftCats];
-    
-    if (targetType === 'cat') {
-      const item = newCats.splice(draggedItem.idx, 1)[0];
-      newCats.splice(targetIdx, 0, item);
-    } else if (targetType === 'ex') {
-      const ci = newCats.findIndex(c => c.id === workout);
-      const item = newCats[ci].exercises.splice(draggedItem.idx, 1)[0];
-      newCats[ci].exercises.splice(targetIdx, 0, item);
-    }
-    setDraftCats(newCats);
-  };
+  // Custom Drag Handlers for Categories
+  const { items: draggCats, listRef: catsListRef, dragInfo: catsDragInfo, handleStart: handleCatDragStart } = useDraggableList(dispCats, (reordered) => {
+    if (manage) setDraftCats(reordered);
+  });
 
   const addEx = () => {
     const a = [...draftCats], ci = a.findIndex(c => c.id === workout);
@@ -523,7 +633,6 @@ function App() {
       else h[dateStr] = { type: catId, status };
       return h;
     });
-    setSelDate(null);
   }, []);
 
   const exportData = () => {
@@ -550,6 +659,7 @@ function App() {
     }
   };
 
+  /* ── RENDERERS ── */
   const renderCal = useMemo(() => {
     if (!prefs.calendar) return null;
     const dim = new Date(calDate.getFullYear(), calDate.getMonth() + 1, 0).getDate();
@@ -586,7 +696,7 @@ function App() {
                 bg = cats.find(c => c.id === rec.type)?.hex || pl?.hex || '#3b82f6';
                 txtCol = 'white'; ico = <Ic n="check" size={12}/>;
               } else {
-                bg = 'rgba(244,63,94,0.3)'; border = '1px solid rgba(244,63,94,0.5)'; txtCol = '#fb7185'; ico = <Ic n="x" size={12}/>;
+                bg = 'rgba(244,63,94,0.3)'; border = '1px solid rgba(244,63,94,0.5)'; txtCol = '#f43f5e'; ico = <Ic n="x" size={12}/>;
               }
             } else if (isToday) {
               border = '2px solid var(--primary)'; txtCol = 'var(--primary)'; bg = 'var(--primary-glow)';
@@ -611,7 +721,7 @@ function App() {
   }, [calDate, hist, cats, sched, today.getMonth(), today.getFullYear(), today.getDate(), prefs.calendar]);
 
   const renderHome = () => (
-    <div className="flex flex-col gap-5 p-5 pb-28 slide-up" dir="rtl">
+    <div className={`flex flex-col gap-5 p-5 pb-28 ${!isTransitioning ? 'fade-in' : ''}`} dir="rtl">
       <div className="flex justify-between items-center mt-6 px-1">
         <h1 className="text-2xl font-black text-white">האימונים שלי</h1>
         <button onClick={enterManage} className="p-3 rounded-2xl btn-press bg-white/5 border border-white/10 text-gray-300">
@@ -623,38 +733,38 @@ function App() {
         <p className="text-xs font-bold uppercase mb-1 text-gray-400">{dayName}, מתוכנן להיום:</p>
         <p className="text-3xl font-black text-white">{planned?.name || 'מנוחה'}</p>
         {planned && (
-          <button onClick={() => setWorkout(planned.id)} className="mt-4 w-full py-3 rounded-xl font-bold text-white flex items-center justify-center gap-2 btn-press" style={{ background: planned.hex }}>
+          <button onClick={() => navigate('home', planned.id)} className="mt-4 w-full py-3 rounded-xl font-bold text-white flex items-center justify-center gap-2 btn-press" style={{ background: planned.hex }}>
             <Ic n="arrowLeft" size={18}/> התחל אימון
           </button>
         )}
       </div>
 
-      <div className="grid gap-3">
+      <div className="grid gap-3" ref={catsListRef}>
         <h3 className="text-sm font-black text-gray-300 mt-2">כל האימונים</h3>
-        {dispCats.map((cat, i) => (
-          <div key={cat.id} className="flex items-center gap-2"
-               draggable={manage}
-               onDragStart={(e) => handleDragStart(e, 'cat', i, cat)}
-               onDragEnd={handleDragEnd}
-               onDragOver={handleDragOver}
-               onDragLeave={handleDragLeave}
-               onDrop={(e) => handleDrop(e, 'cat', i)}>
-            
-            {manage && (
-              <div className="p-2 cursor-grab text-gray-500 opacity-50 hover:opacity-100"><Ic n="drag" size={20}/></div>
-            )}
-            
-            <button onClick={() => manage ? renameCat(i) : setWorkout(cat.id)}
-              className={`flex-1 flex items-center justify-between p-5 rounded-2xl btn-press transition-all ${manage ? 'border-blue-500/50 bg-blue-500/5' : 'card'}`}>
-              <div className="flex items-center gap-4">
-                <span className="p-3 rounded-xl shadow-inner" style={{ background: 'rgba(0,0,0,0.4)', color: cat.hex }}><Ic n={cat.icon} size={22}/></span>
-                <span className="text-lg font-black text-white">{cat.name}</span>
-              </div>
-              {manage ? <Ic n="edit" size={20} style={{ color: 'var(--primary)' }}/> : <Ic n="arrowLeft" size={20} style={{ color: 'rgba(255,255,255,0.2)' }}/>}
-            </button>
-            {manage && <button onClick={() => delCat(i)} className="p-5 rounded-2xl btn-press bg-rose-500/10 text-rose-500 border border-rose-500/20"><Ic n="trash" size={20}/></button>}
-          </div>
-        ))}
+        {draggCats.map((cat, i) => {
+           const isDragging = catsDragInfo.currentIndex === i && catsDragInfo.isDragging;
+           return (
+            <div key={cat.id} className={`flex items-center gap-2 transition-all ${isDragging ? 'touch-dragging' : ''}`}>
+              {manage && (
+                <div className="p-4 cursor-grab text-gray-500 opacity-70 hover:opacity-100 touch-none"
+                     onMouseDown={(e) => handleCatDragStart(e, i)}
+                     onTouchStart={(e) => handleCatDragStart(e, i)}>
+                  <Ic n="drag" size={24}/>
+                </div>
+              )}
+              
+              <button onClick={() => manage ? renameCat(i) : navigate('home', cat.id)}
+                className={`flex-1 flex items-center justify-between p-5 rounded-2xl btn-press transition-all ${manage ? 'border-blue-500/50 bg-blue-500/5' : 'card'}`}>
+                <div className="flex items-center gap-4">
+                  <span className="p-3 rounded-xl shadow-inner" style={{ background: 'rgba(0,0,0,0.4)', color: cat.hex }}><Ic n={cat.icon} size={22}/></span>
+                  <span className="text-lg font-black text-white">{cat.name}</span>
+                </div>
+                {manage ? <Ic n="edit" size={20} style={{ color: 'var(--primary)' }}/> : <Ic n="arrowLeft" size={20} style={{ color: 'rgba(255,255,255,0.2)' }}/>}
+              </button>
+              {manage && <button onClick={() => delCat(i)} className="p-5 rounded-2xl btn-press bg-rose-500/10 text-rose-500 border border-rose-500/20"><Ic n="trash" size={20}/></button>}
+            </div>
+          );
+        })}
         {manage && (
           <button onClick={addCat} className="w-full mt-2 p-5 rounded-2xl font-bold flex flex-col items-center gap-2 btn-press border-2 border-dashed border-white/20 text-gray-400 hover:text-white hover:border-white/40 transition-colors">
             <Ic n="plus" size={24}/> הוסף אימון חדש
@@ -669,6 +779,17 @@ function App() {
     const cat = dispCats.find(c => c.id === workout);
     if (!cat) return null;
     
+    const { items: draggExs, listRef: exListRef, dragInfo: exDragInfo, handleStart: handleExDragStart } = useDraggableList(cat.exercises, (reordered) => {
+      if (manage) {
+         const newCats = [...draftCats];
+         const ci = newCats.findIndex(c => c.id === workout);
+         newCats[ci].exercises = reordered;
+         setDraftCats(newCats);
+      }
+    });
+
+    const exercisesToRender = manage ? draggExs : cat.exercises;
+
     const totalExercises = cat.exercises.length;
     let totalWeight = 0;
     cat.exercises.forEach(ex => {
@@ -680,10 +801,10 @@ function App() {
     });
 
     return (
-      <div className="p-5 pb-32 fade-in" dir="rtl">
+      <div className={`p-5 pb-32 ${!isTransitioning ? 'fade-in' : ''}`} dir="rtl">
         <div className="flex justify-between items-center mt-6 mb-8 px-1">
           {!manage ? (
-            <button onClick={() => setWorkout(null)} className="flex items-center gap-2 btn-press text-gray-400 bg-white/5 px-4 py-2 rounded-xl">
+            <button onClick={() => navigate('home', null)} className="flex items-center gap-2 btn-press text-gray-400 bg-white/5 px-4 py-2 rounded-xl">
               <Ic n="chevR" size={20}/><span className="font-bold text-sm">חזור</span>
             </button>
           ) : (
@@ -694,57 +815,56 @@ function App() {
 
         <h2 className="text-4xl font-black text-white mb-6 px-2">{cat.name}</h2>
 
-        <div className="space-y-4">
-          {cat.exercises.map((ex, idx) => (
-            <div key={ex.id} className="flex gap-2"
-                 draggable={manage}
-                 onDragStart={(e) => handleDragStart(e, 'ex', idx, ex)}
-                 onDragEnd={handleDragEnd}
-                 onDragOver={handleDragOver}
-                 onDragLeave={handleDragLeave}
-                 onDrop={(e) => handleDrop(e, 'ex', idx)}>
-              
-              {manage && (
-                <div className="p-2 cursor-grab text-gray-500 flex flex-col justify-center opacity-50 hover:opacity-100">
-                  <Ic n="drag" size={20}/>
-                </div>
-              )}
-
-              <div className={`flex-1 p-5 rounded-2xl relative overflow-hidden flex flex-col transition-colors btn-press ${manage ? 'bg-blue-500/10 border border-blue-500/30' : 'card'}`}
-                   onClick={() => setEditEx(ex)}>
-                <div className="absolute top-0 right-0 w-1.5 h-full opacity-60 rounded-l-full" style={{ backgroundColor: cat.hex }}/>
+        <div className="space-y-4" ref={exListRef}>
+          {exercisesToRender.map((ex, idx) => {
+             const isDragging = exDragInfo.currentIndex === idx && exDragInfo.isDragging;
+             return (
+              <div key={ex.id} className={`flex gap-2 transition-all ${isDragging ? 'touch-dragging' : ''}`}>
                 
-                <div className="flex justify-between items-start pr-3">
-                   <div className="flex-1">
-                    <h4 className="font-black text-lg mb-2 text-white">{ex.name}</h4>
-                    <div className="flex gap-5 text-sm mb-2">
-                      <span className="text-gray-400 font-bold">{ex.sets} <span className="text-[10px]">סטים</span></span>
-                      <span className="text-gray-400 font-bold">{ex.reps} <span className="text-[10px]">חזרות</span></span>
-                      <span className="font-black drop-shadow-sm" style={{ color: cat.hex }}>{ex.weight} <span className="text-[10px]">ק"ג</span></span>
+                {manage && (
+                  <div className="p-2 cursor-grab text-gray-500 flex flex-col justify-center opacity-70 hover:opacity-100 touch-none"
+                       onMouseDown={(e) => handleExDragStart(e, idx)}
+                       onTouchStart={(e) => handleExDragStart(e, idx)}>
+                    <Ic n="drag" size={24}/>
+                  </div>
+                )}
+
+                <div className={`flex-1 p-5 rounded-2xl relative overflow-hidden flex flex-col transition-colors btn-press ${manage ? 'bg-blue-500/10 border border-blue-500/30' : 'card'}`}
+                     onClick={() => setEditEx(ex)}>
+                  <div className="absolute top-0 right-0 w-1.5 h-full opacity-60 rounded-l-full" style={{ backgroundColor: cat.hex }}/>
+                  
+                  <div className="flex justify-between items-start pr-3">
+                     <div className="flex-1">
+                      <h4 className="font-black text-lg mb-2 text-white">{ex.name}</h4>
+                      <div className="flex gap-5 text-sm mb-2">
+                        <span className="text-gray-400 font-bold">{ex.sets} <span className="text-[10px]">סטים</span></span>
+                        <span className="text-gray-400 font-bold">{ex.reps} <span className="text-[10px]">חזרות</span></span>
+                        <span className="font-black drop-shadow-sm" style={{ color: cat.hex }}>{ex.weight} <span className="text-[10px]">ק"ג</span></span>
+                      </div>
+                      {ex.notes && <p className="text-xs text-gray-500 italic bg-black/20 p-2 rounded-lg inline-block border border-white/5">{ex.notes}</p>}
+                      
+                      {!manage && prefs.setTable && ex.setDetails && ex.setDetails.some(s => s.done) && (
+                        <div className="mt-3 flex gap-2 flex-wrap">
+                          {ex.setDetails.map((s, i) => s.done && (
+                             <span key={i} className="text-[10px] font-bold px-2 py-1 rounded-md bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                               סט {i+1}: {s.reps} חז'
+                             </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    {ex.notes && <p className="text-xs text-gray-500 italic bg-black/20 p-2 rounded-lg inline-block border border-white/5">{ex.notes}</p>}
                     
-                    {!manage && prefs.setTable && ex.setDetails && ex.setDetails.some(s => s.done) && (
-                      <div className="mt-3 flex gap-2 flex-wrap">
-                        {ex.setDetails.map((s, i) => s.done && (
-                           <span key={i} className="text-[10px] font-bold px-2 py-1 rounded-md bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                             סט {i+1}: {s.reps} חז'
-                           </span>
-                        ))}
+                    {manage && (
+                      <div className="flex gap-2">
+                         <button onClick={(e) => { e.stopPropagation(); copyExercise(ex); }} className="p-2.5 rounded-xl btn-press bg-white/5 text-gray-400"><Ic n="copy" size={18}/></button>
+                         <button onClick={(e) => { e.stopPropagation(); delEx(ex.id); }} className="p-2.5 rounded-xl btn-press bg-rose-500/10 text-rose-500 border border-rose-500/20"><Ic n="trash" size={18}/></button>
                       </div>
                     )}
                   </div>
-                  
-                  {manage && (
-                    <div className="flex gap-2">
-                       <button onClick={(e) => { e.stopPropagation(); copyExercise(ex); }} className="p-2.5 rounded-xl btn-press bg-white/5 text-gray-400"><Ic n="copy" size={18}/></button>
-                       <button onClick={(e) => { e.stopPropagation(); delEx(ex.id); }} className="p-2.5 rounded-xl btn-press bg-rose-500/10 text-rose-500 border border-rose-500/20"><Ic n="trash" size={18}/></button>
-                    </div>
-                  )}
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           
           {manage && (
             <div className="flex gap-2 mt-4">
@@ -786,7 +906,7 @@ function App() {
     const rate = stats.monthDone + stats.monthMissed > 0 ? Math.round((stats.monthDone / (stats.monthDone + stats.monthMissed)) * 100) : 0;
     
     return (
-      <div className="p-5 pb-28 slide-up" dir="rtl">
+      <div className={`p-5 pb-28 ${!isTransitioning ? 'slide-up' : ''}`} dir="rtl">
         <h2 className="text-3xl font-black mt-6 mb-8 text-white px-2">סטטיסטיקה ומעקב</h2>
 
         <div className="grid grid-cols-2 gap-4 mb-6">
@@ -827,7 +947,7 @@ function App() {
   };
 
   const renderSettings = () => (
-    <div className="p-5 pb-28 slide-up" dir="rtl">
+    <div className={`p-5 pb-28 ${!isTransitioning ? 'slide-up' : ''}`} dir="rtl">
       <h2 className="text-3xl font-black mt-6 mb-8 text-white px-2">הגדרות מתקדמות</h2>
 
       <div className="card p-6 mb-5">
@@ -846,14 +966,16 @@ function App() {
         <h3 className="font-black text-sm mb-5 flex items-center gap-2.5 text-white">
           <span className="p-1.5 bg-yellow-500/10 rounded-lg text-yellow-400"><Ic n="palette" size={18}/></span> ערכת נושא
         </h3>
-        <div className="grid grid-cols-1 gap-2">
+        <div className="grid grid-cols-2 gap-3">
           {[
-            { id: 'default', name: 'קלאסי (כחול-ורוד)' },
-            { id: 'emerald', name: 'אמרלד (ירוק כהה)' },
-            { id: 'ocean', name: 'אוקיינוס (תכלת עמוק)' }
+            { id: 'default', name: 'קלאסי (כחול)' },
+            { id: 'emerald', name: 'אמרלד (ירוק)' },
+            { id: 'ocean', name: 'אוקיינוס (תכלת)' },
+            { id: 'cherry', name: 'דובדבן (אדום)' },
+            { id: 'sunset', name: 'שקיעה (כתום)' },
           ].map(t => (
             <button key={t.id} onClick={() => setTheme(t.id)} 
-              className={`p-3.5 rounded-xl text-right font-bold text-sm btn-press transition-all ${theme === t.id ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' : 'bg-white/5 text-gray-400 border border-transparent'}`}>
+              className={`p-3.5 rounded-xl text-center font-bold text-sm btn-press transition-all ${theme === t.id ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30 shadow-inner' : 'bg-white/5 text-gray-400 border border-transparent'}`}>
               {t.name}
             </button>
           ))}
@@ -875,7 +997,7 @@ function App() {
                 <select className="flex-1 p-2 rounded-lg text-sm font-bold outline-none styled-input bg-transparent border-none focus:ring-0" dir="rtl"
                   value={pid || ''}
                   onChange={e => setSched(prev => ({ ...prev, [di]: e.target.value || null }))}>
-                  <option value="" className="text-gray-800">☕ מנוחה / ללא אימון</option>
+                  <option value="" className="text-gray-800">☕ מנוחה</option>
                   {cats.map(cat => <option key={cat.id} value={cat.id} className="text-gray-800">{cat.name}</option>)}
                 </select>
                 {c && <div className="w-3 h-3 rounded-full flex-shrink-0 shadow-sm" style={{ backgroundColor: c.hex, boxShadow: `0 0 6px ${c.hex}80` }}/>}
@@ -887,7 +1009,7 @@ function App() {
 
       <div className="card p-6 mb-5">
         <h3 className="font-black text-sm mb-4 flex items-center gap-2.5 text-white">
-          <span className="p-1.5 bg-emerald-500/10 rounded-lg text-emerald-400"><Ic n="download" size={18}/></span> גיבוי וניהול מערכת
+          <span className="p-1.5 bg-emerald-500/10 rounded-lg text-emerald-400"><Ic n="download" size={18}/></span> גיבוי וניהול
         </h3>
         <div className="space-y-3">
           <button onClick={exportData} className="w-full p-4 rounded-xl font-black flex items-center justify-center gap-2.5 btn-press bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 transition-colors">
@@ -902,9 +1024,6 @@ function App() {
           
           <button onClick={() => window.location.reload(true)} className="w-full p-4 rounded-xl font-black flex items-center justify-center gap-2.5 btn-press bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 transition-colors">
             <Ic n="refresh" size={20}/> כפה רענון גרסה מהשרת
-          </button>
-          <button onClick={resetAll} className="w-full p-4 rounded-xl font-black flex items-center justify-center gap-2.5 btn-press bg-rose-500/10 border border-rose-500/30 text-rose-500 hover:bg-rose-500/20 transition-colors mt-3">
-            <Ic n="trash" size={20}/> איפוס מוחלט של המערכת
           </button>
         </div>
       </div>
@@ -929,7 +1048,8 @@ function App() {
         <div className="fixed z-50 transition-all duration-300" style={{ bottom: '6rem', left: '1.5rem' }}>
           {timerMinimized && timeLeft > 0 && !timerOpen ? (
             <button onClick={() => { setTimerMinimized(false); setTimerOpen(true); }}
-              className="px-5 py-3 rounded-full font-black text-white bg-blue-600 shadow-[0_4px_20px_rgba(59,130,246,0.5)] flex items-center gap-2 btn-press border border-blue-400">
+              className="px-5 py-3 rounded-full font-black text-white shadow-[0_4px_20px_rgba(0,0,0,0.5)] flex items-center gap-2 btn-press"
+              style={{ background: 'var(--primary)', border: '1px solid var(--primary-glow)' }}>
               <Ic n="clock" size={16}/>
               <span>{fmtTime(timeLeft)}</span>
             </button>
@@ -937,9 +1057,9 @@ function App() {
             <button onClick={() => setTimerOpen(true)}
               className={`flex flex-col items-center justify-center rounded-[1.25rem] btn-press transition-all duration-300 ${timeLeft > 0 ? 'w-16 h-16 glow-pulse' : 'w-14 h-14'}`}
               style={{
-                background: timeLeft > 0 ? 'linear-gradient(135deg, #3b82f6, #1d4ed8)' : 'var(--surface)',
-                border: `1px solid ${timeLeft > 0 ? 'rgba(59,130,246,0.5)' : 'var(--border)'}`,
-                boxShadow: timeLeft > 0 ? '0 10px 25px rgba(59,130,246,0.5)' : '0 4px 15px rgba(0,0,0,0.3)',
+                background: timeLeft > 0 ? 'linear-gradient(135deg, var(--primary), var(--bg))' : 'var(--surface)',
+                border: `1px solid ${timeLeft > 0 ? 'var(--primary)' : 'var(--border)'}`,
+                boxShadow: timeLeft > 0 ? '0 10px 25px var(--primary-glow)' : '0 4px 15px rgba(0,0,0,0.3)',
                 color: timeLeft > 0 ? 'white' : 'var(--primary)',
                 backdropFilter: 'blur(8px)',
               }}>
@@ -963,7 +1083,7 @@ function App() {
             {NAV.map(item => {
               const active = page === item.id && !workout;
               return (
-                <button key={item.id} onClick={() => { setPage(item.id); setWorkout(null); if (manage) cancelManage(); }}
+                <button key={item.id} onClick={() => { navigate(item.id); if (manage) cancelManage(); }}
                   className="flex-1 py-4 flex flex-col items-center gap-1.5 transition-all btn-press"
                   style={{ color: active ? 'var(--primary)' : 'rgba(255,255,255,0.35)' }}>
                   <div className={`transition-transform duration-300 ${active ? 'scale-110 drop-shadow-[0_0_8px_var(--primary-glow)]' : ''}`}>
@@ -981,7 +1101,7 @@ function App() {
       {manage && (
         <div className="fixed bottom-0 left-0 w-full p-4 z-[150] flex gap-3 slide-up pb-safe"
           style={{ background: 'rgba(6, 6, 10, 0.95)', borderTop: '1px solid var(--border)', backdropFilter: 'blur(15px)', paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
-          <button onClick={saveManage} className="flex-1 p-4 rounded-2xl font-black flex items-center justify-center gap-2 btn-press bg-emerald-600 text-white shadow-[0_4px_20px_rgba(5,150,105,0.4)]">
+          <button onClick={saveManage} className="flex-1 p-4 rounded-2xl font-black flex items-center justify-center gap-2 btn-press text-white shadow-lg" style={{background: 'var(--primary)'}}>
             <Ic n="check" size={20}/> עדכון ושמירה
           </button>
           <button onClick={cancelManage} className="flex-1 p-4 rounded-2xl font-black flex items-center justify-center gap-2 btn-press bg-white/5 border border-white/10 text-gray-300">
@@ -1000,7 +1120,8 @@ function App() {
             </div>
             
             <div className="text-center mb-10 mt-4">
-              <span className={`text-8xl font-black ${timerOn ? 'text-blue-500 drop-shadow-[0_0_20px_rgba(59,130,246,0.6)]' : 'text-gray-500'}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
+              <span className={`text-8xl font-black transition-all duration-300 ${timerOn ? 'drop-shadow-lg scale-105' : 'opacity-50'}`} 
+                    style={{ fontVariantNumeric: 'tabular-nums', color: timerOn ? 'var(--primary)' : 'var(--text)' }}>
                 {fmtTime(timeLeft)}
               </span>
             </div>
@@ -1008,7 +1129,13 @@ function App() {
             <div className="flex justify-center gap-3 mb-8 flex-wrap">
               {[30, 45, 60, 90, 120].map(s => (
                 <button key={s} onClick={() => startTimer(s)}
-                  className={`w-[70px] h-[70px] rounded-2xl flex flex-col items-center justify-center btn-press border transition-colors ${timeLeft === s && timerOn ? 'bg-blue-600 border-blue-400 text-white shadow-[0_0_15px_rgba(59,130,246,0.5)]' : 'bg-black/30 border-white/10 text-gray-400'}`}>
+                  className={`w-[70px] h-[70px] rounded-2xl flex flex-col items-center justify-center btn-press border transition-colors`}
+                  style={{
+                    background: timeLeft === s && timerOn ? 'var(--primary)' : 'rgba(0,0,0,0.3)',
+                    borderColor: timeLeft === s && timerOn ? 'transparent' : 'var(--border)',
+                    color: timeLeft === s && timerOn ? 'white' : 'var(--muted)',
+                    boxShadow: timeLeft === s && timerOn ? '0 0 15px var(--primary-glow)' : 'none'
+                  }}>
                   <span className="text-2xl font-black leading-none">{s < 60 ? s : s/60 + 'm'}</span>
                 </button>
               ))}
