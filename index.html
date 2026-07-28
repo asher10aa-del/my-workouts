@@ -93,6 +93,10 @@
     .toggle-checkbox:checked + .toggle-label { background-color: var(--primary); }
     .toggle-checkbox { right: 0; z-index: 1; border-color: #4b5563; transition: all 0.3s; }
     .toggle-label { background-color: #374151; transition: all 0.3s; }
+
+    /* Drag and Drop styles */
+    .dragging { opacity: 0.5; transform: scale(0.98); box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+    .drag-over { border-bottom: 2px solid var(--primary) !important; padding-bottom: 1rem; }
   </style>
 </head>
 <body>
@@ -105,7 +109,7 @@ const S = {
   get: (k, d) => { try { const v = localStorage.getItem(k); return v != null ? JSON.parse(v) : d; } catch { return d; } },
   set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { console.warn('Storage error', e); } }
 };
-const VER = 'v23'; // Bumped version for clean state but we will migrate old data
+const VER = 'v24'; // Bumped version to v24 for the new features
 
 /* ── AUDIO SUBSYSTEM ── */
 const playBeep = () => {
@@ -131,12 +135,12 @@ const DAY_LET = ['א','ב','ג','ד','ה','ו','ש'];
 
 const DEF_CATS = [
   {id:'c1', name:'Upper A', hex:'#3b82f6', icon:'dumbbell', exercises:[
-    {id:'h1', name:'דחיקת חזה עליון (סמיט/חופשי)', sets:2, reps:10, weight:'22.5', notes:''},
-    {id:'g1', name:'חתירה במכונה (אדומה)', sets:2, reps:10, weight:'37.5', notes:''}
+    {id:'h1', name:'דחיקת חזה עליון (סמיט/חופשי)', sets:2, reps:10, weight:'22.5', notes:'', setDetails: [{reps:10, done:false}, {reps:10, done:false}]},
+    {id:'g1', name:'חתירה במכונה (אדומה)', sets:2, reps:10, weight:'37.5', notes:'', setDetails: [{reps:10, done:false}, {reps:10, done:false}]}
   ]}
 ];
 const DEF_SCHED = {0:'c1', 1:null, 2:null, 3:null, 4:null, 5:null, 6:null};
-const DEF_PREFS = { timer: true, calendar: true, stats: true };
+const DEF_PREFS = { timer: true, calendar: true, stats: true, setTable: true };
 
 /* ── ICONS LIBRARY ── */
 const ICONS = {
@@ -167,6 +171,9 @@ const ICONS = {
   refresh: <><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></>,
   arrowUp: <><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></>,
   arrowDown: <><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></>,
+  drag: <><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></>,
+  copy: <><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></>,
+  paste: <><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></>
 };
 
 const Ic = React.memo(({n, size=24, cls='', style={}}) => (
@@ -219,12 +226,33 @@ const Toggle = ({ label, checked, onChange, icon }) => (
   </div>
 );
 
-function ExerciseEditModal({ exercise, onSave, onClose }) {
-  const [d, setD] = useState({ notes: '', ...exercise });
+function ExerciseEditModal({ exercise, onSave, onClose, prefs }) {
+  const [d, setD] = useState({ notes: '', setDetails: [], ...exercise });
+
+  // Sync setDetails array with the 'sets' number
+  useEffect(() => {
+    const numSets = parseInt(d.sets) || 0;
+    const currentDetails = d.setDetails || [];
+    if (numSets > currentDetails.length) {
+      const newDetails = [...currentDetails];
+      for (let i = currentDetails.length; i < numSets; i++) {
+        newDetails.push({ reps: d.reps || '', done: false });
+      }
+      setD(p => ({...p, setDetails: newDetails}));
+    } else if (numSets < currentDetails.length) {
+      setD(p => ({...p, setDetails: currentDetails.slice(0, numSets)}));
+    }
+  }, [d.sets]);
+
+  const updateSetDetail = (idx, field, value) => {
+    const newDetails = [...d.setDetails];
+    newDetails[idx] = { ...newDetails[idx], [field]: value };
+    setD(p => ({ ...p, setDetails: newDetails }));
+  };
   
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-5 fade-in" style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)' }}>
-      <div className="card w-full max-w-sm p-7 relative slide-down max-h-[90vh] overflow-y-auto no-scroll">
+      <div className="card w-full max-w-sm p-7 relative slide-down max-h-[90vh] overflow-y-auto no-scroll" dir="rtl">
         <button onClick={onClose} className="absolute top-4 left-4 p-2 rounded-xl btn-press" style={{ color: 'var(--muted)', background: 'rgba(255,255,255,0.05)' }}>
           <Ic n="x" size={18}/>
         </button>
@@ -236,7 +264,7 @@ function ExerciseEditModal({ exercise, onSave, onClose }) {
               value={d.name} onChange={e => setD(p => ({ ...p, name: e.target.value }))} />
           </div>
           <div className="grid grid-cols-3 gap-3">
-            {[['sets', 'סטים', 'number'], ['reps', 'חזרות', 'number'], ['weight', 'משקל ק"ג', 'text']].map(([f, l, t]) => (
+            {[['sets', 'סטים', 'number'], ['reps', 'חזרות (יעד)', 'number'], ['weight', 'משקל ק"ג', 'text']].map(([f, l, t]) => (
               <div key={f}>
                 <label className="text-[10px] uppercase font-bold mb-2 block text-center text-gray-400">{l}</label>
                 <input type={t} className="w-full p-3 rounded-xl styled-input text-center font-black"
@@ -247,9 +275,30 @@ function ExerciseEditModal({ exercise, onSave, onClose }) {
           </div>
           <div>
             <label className="text-xs font-bold mb-2 block text-gray-400">הערות / דגשים לתרגיל</label>
-            <textarea className="w-full p-3.5 rounded-xl styled-input text-right text-sm min-h-[80px]"
+            <textarea className="w-full p-3.5 rounded-xl styled-input text-right text-sm min-h-[60px]"
               placeholder="למשל: ספסל על שלב 4..." value={d.notes || ''} onChange={e => setD(p => ({ ...p, notes: e.target.value }))} />
           </div>
+
+          {/* New Sets Tracking Table */}
+          {prefs.setTable && d.setDetails && d.setDetails.length > 0 && (
+            <div className="mt-4 p-4 rounded-xl bg-black/30 border border-white/5">
+              <label className="text-xs font-bold mb-3 block text-gray-400 text-center">מעקב חזרות בפועל</label>
+              <div className="space-y-2">
+                {d.setDetails.map((setInfo, idx) => (
+                  <div key={idx} className="flex items-center gap-3">
+                    <span className="w-10 text-xs font-bold text-gray-500 text-center">סט {idx + 1}</span>
+                    <input type="number" placeholder="חזרות" className="flex-1 p-2 rounded-lg styled-input text-center font-bold text-sm"
+                           value={setInfo.reps} onChange={(e) => updateSetDetail(idx, 'reps', e.target.value)} />
+                    <button onClick={() => updateSetDetail(idx, 'done', !setInfo.done)}
+                            className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${setInfo.done ? 'bg-emerald-600 text-white' : 'bg-white/5 text-gray-500'}`}>
+                      <Ic n="check" size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <button onClick={() => onSave(d)} className="w-full mt-2 p-4 rounded-xl font-black text-white text-base btn-press transition-all bg-blue-600 shadow-lg">
             שמור שינויים
           </button>
@@ -316,8 +365,8 @@ function App() {
   const [page, setPage] = useState('home');
   const [workout, setWorkout] = useState(null);
   
-  // Data State - Attempting to migrate if v23 is empty but older exists
-  const getInitial = (key, def) => S.get(`wk_${VER}_${key}`, S.get(`wk_v22_${key}`, S.get(`wk_v21_${key}`, S.get(`workout_v16_${key}`, def))));
+  // Data State - Attempting to migrate if v24 is empty but older exists
+  const getInitial = (key, def) => S.get(`wk_${VER}_${key}`, S.get(`wk_v23_${key}`, S.get(`wk_v22_${key}`, S.get(`wk_v21_${key}`, S.get(`workout_v16_${key}`, def)))));
   
   const [cats, setCats] = useState(() => getInitial('cats', DEF_CATS));
   const [hist, setHist] = useState(() => getInitial('hist', {}));
@@ -328,6 +377,7 @@ function App() {
   const [manage, setManage] = useState(false);
   const [draftCats, setDraftCats] = useState(null);
   const [editEx, setEditEx] = useState(null);
+  const [copiedEx, setCopiedEx] = useState(null);
 
   const [timeLeft, setTimeLeft] = useState(0);
   const [timerOn, setTimerOn] = useState(false);
@@ -338,10 +388,27 @@ function App() {
   const [selDate, setSelDate] = useState(null);
   const fileRef = useRef(null);
 
-  // Apply Theme
+  // Scroll Position Management
+  const scrollPositions = useRef({});
+  
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
+    // Restore scroll position when page changes
+    const pos = scrollPositions.current[`${page}_${workout || 'main'}`] || 0;
+    window.scrollTo(0, pos);
+  }, [page, workout]);
+
+  useEffect(() => {
+    // Save scroll position before unmount/change
+    const handleScroll = () => {
+      scrollPositions.current[`${page}_${workout || 'main'}`] = window.scrollY;
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [page, workout]);
+
+
+  // Apply Theme
+  useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, [theme]);
 
   // Persist State
   useEffect(() => S.set(`wk_${VER}_cats`, cats), [cats]);
@@ -352,32 +419,18 @@ function App() {
 
   // Timer Logic
   useEffect(() => {
-    if (!prefs.timer) return; // If timer disabled in prefs
+    if (!prefs.timer) return; 
     let iv;
     if (timerOn && timeLeft > 0) {
       iv = setInterval(() => setTimeLeft(t => t - 1), 1000);
     } else if (timerOn && timeLeft === 0) {
-      setTimerOn(false);
-      setTimerOpen(true); 
-      setTimerMinimized(false);
-      playBeep();
+      setTimerOn(false); setTimerOpen(true); setTimerMinimized(false); playBeep();
     }
     return () => clearInterval(iv);
   }, [timerOn, timeLeft, prefs.timer]);
 
-  const startTimer = useCallback((s) => {
-    setTimeLeft(s);
-    setTimerOn(true);
-    setTimerMinimized(true);
-    setTimerOpen(false);
-  }, []);
-
-  const stopTimer = () => {
-    setTimerOn(false);
-    setTimeLeft(0);
-    setTimerMinimized(false);
-    setTimerOpen(false);
-  };
+  const startTimer = useCallback((s) => { setTimeLeft(s); setTimerOn(true); setTimerMinimized(true); setTimerOpen(false); }, []);
+  const stopTimer = () => { setTimerOn(false); setTimeLeft(0); setTimerMinimized(false); setTimerOpen(false); };
 
   const today = new Date();
   const todayKey = today.toISOString().split('T')[0];
@@ -392,11 +445,6 @@ function App() {
   const saveManage = () => { setCats(draftCats); setManage(false); setDraftCats(null); };
   const cancelManage = () => { setManage(false); setDraftCats(null); };
 
-  const moveCat = (i, dir) => {
-    const a = [...draftCats], j = i + dir;
-    if (j < 0 || j >= a.length) return;
-    [a[i], a[j]] = [a[j], a[i]]; setDraftCats(a);
-  };
   const addCat = () => {
     const name = prompt('שם תוכנית האימון החדשה:');
     if (name) setDraftCats([...draftCats, { id: crypto.randomUUID(), name, hex: '#a855f7', icon: 'dumbbell', exercises: [] }]);
@@ -411,23 +459,66 @@ function App() {
     if (n) { const a = [...draftCats]; a[i] = { ...a[i], name: n }; setDraftCats(a); }
   };
   
-  const moveEx = (i, dir) => {
-    const a = [...draftCats], ci = a.findIndex(c => c.id === workout);
-    const exs = [...a[ci].exercises], j = i + dir;
-    if (j < 0 || j >= exs.length) return;
-    [exs[i], exs[j]] = [exs[j], exs[i]]; a[ci] = { ...a[ci], exercises: exs }; setDraftCats(a);
+  // Drag and Drop logic
+  const [draggedItem, setDraggedItem] = useState(null);
+  const [draggedIdx, setDraggedIdx] = useState(null);
+
+  const handleDragStart = (e, type, idx, item) => {
+    setDraggedItem({ type, idx, item });
+    setDraggedIdx(idx);
+    // Needed for Firefox
+    e.dataTransfer.setData('text/plain', ''); 
+    setTimeout(() => { e.target.classList.add('dragging'); }, 0);
   };
+
+  const handleDragEnd = (e) => {
+    e.target.classList.remove('dragging');
+    setDraggedItem(null);
+    setDraggedIdx(null);
+    document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+  };
+
+  const handleDragOver = (e, idx) => {
+    e.preventDefault();
+    if (!draggedItem || draggedItem.idx === idx) return;
+    e.currentTarget.classList.add('drag-over');
+  };
+
+  const handleDragLeave = (e) => {
+    e.currentTarget.classList.remove('drag-over');
+  };
+
+  const handleDrop = (e, targetType, targetIdx) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove('drag-over');
+    if (!draggedItem || draggedItem.type !== targetType || draggedItem.idx === targetIdx) return;
+
+    const newCats = [...draftCats];
+    
+    if (targetType === 'cat') {
+      const item = newCats.splice(draggedItem.idx, 1)[0];
+      newCats.splice(targetIdx, 0, item);
+    } else if (targetType === 'ex') {
+      const ci = newCats.findIndex(c => c.id === workout);
+      const item = newCats[ci].exercises.splice(draggedItem.idx, 1)[0];
+      newCats[ci].exercises.splice(targetIdx, 0, item);
+    }
+    setDraftCats(newCats);
+  };
+
   const addEx = () => {
     const a = [...draftCats], ci = a.findIndex(c => c.id === workout);
-    const ex = { id: crypto.randomUUID(), name: 'הזן תרגיל חדש', sets: 3, reps: 10, weight: '0', notes: '' };
+    const ex = { id: crypto.randomUUID(), name: 'הזן תרגיל חדש', sets: 3, reps: 10, weight: '0', notes: '', setDetails: [{reps:'', done:false},{reps:'', done:false},{reps:'', done:false}] };
     a[ci] = { ...a[ci], exercises: [...a[ci].exercises, ex] }; setDraftCats(a); setEditEx(ex);
   };
+  
   const delEx = (id) => {
     if (confirm('מחיקת תרגיל זה מהרשימה?')) {
       const a = [...draftCats], ci = a.findIndex(c => c.id === workout);
       a[ci] = { ...a[ci], exercises: a[ci].exercises.filter(e => e.id !== id) }; setDraftCats(a);
     }
   };
+
   const saveEx = (upd) => {
     if (manage) {
       const a = [...draftCats], ci = a.findIndex(c => c.id === workout);
@@ -437,6 +528,19 @@ function App() {
       a[ci] = { ...a[ci], exercises: a[ci].exercises.map(e => e.id === upd.id ? upd : e) }; setCats(a);
     }
     setEditEx(null);
+  };
+
+  const copyExercise = (ex) => {
+    setCopiedEx(ex);
+    alert('תרגיל הועתק! ניתן להדביק אותו באימון אחר.');
+  };
+
+  const pasteExercise = () => {
+    if (!copiedEx) return;
+    const newEx = { ...copiedEx, id: crypto.randomUUID() }; // new ID
+    const a = [...draftCats], ci = a.findIndex(c => c.id === workout);
+    a[ci] = { ...a[ci], exercises: [...a[ci].exercises, newEx] }; 
+    setDraftCats(a);
   };
 
   const updateHist = useCallback((dateStr, status, catId) => {
@@ -557,13 +661,18 @@ function App() {
       <div className="grid gap-3">
         <h3 className="text-sm font-black text-gray-300 mt-2">כל האימונים</h3>
         {dispCats.map((cat, i) => (
-          <div key={cat.id} className="flex items-center gap-2">
+          <div key={cat.id} className="flex items-center gap-2"
+               draggable={manage}
+               onDragStart={(e) => handleDragStart(e, 'cat', i, cat)}
+               onDragEnd={handleDragEnd}
+               onDragOver={(e) => handleDragOver(e, i)}
+               onDragLeave={handleDragLeave}
+               onDrop={(e) => handleDrop(e, 'cat', i)}>
+            
             {manage && (
-              <div className="flex flex-col gap-1">
-                <button onClick={() => moveCat(i, -1)} className="p-2 rounded-lg btn-press bg-white/5 text-gray-400"><Ic n="arrowUp" size={16}/></button>
-                <button onClick={() => moveCat(i, 1)} className="p-2 rounded-lg btn-press bg-white/5 text-gray-400"><Ic n="arrowDown" size={16}/></button>
-              </div>
+              <div className="p-2 cursor-grab text-gray-500 opacity-50 hover:opacity-100"><Ic n="drag" size={20}/></div>
             )}
+            
             <button onClick={() => manage ? renameCat(i) : setWorkout(cat.id)}
               className={`flex-1 flex items-center justify-between p-5 rounded-2xl btn-press transition-all ${manage ? 'border-blue-500/50 bg-blue-500/5' : 'card'}`}>
               <div className="flex items-center gap-4">
@@ -588,8 +697,19 @@ function App() {
   const renderWorkoutDetail = () => {
     const cat = dispCats.find(c => c.id === workout);
     if (!cat) return null;
-    const todayRec = hist[todayKey];
     
+    // Calculate Summary
+    const totalExercises = cat.exercises.length;
+    let totalWeight = 0;
+    cat.exercises.forEach(ex => {
+      const sets = parseInt(ex.sets) || 0;
+      const reps = parseInt(ex.reps) || 0;
+      // take first weight if split like "10 / 20"
+      const weightStr = (ex.weight || '0').split('/')[0].trim();
+      const weight = parseFloat(weightStr) || 0;
+      totalWeight += (sets * reps * weight);
+    });
+
     return (
       <div className="p-5 pb-32 fade-in" dir="rtl">
         <div className="flex justify-between items-center mt-6 mb-8 px-1">
@@ -605,58 +725,89 @@ function App() {
 
         <h2 className="text-4xl font-black text-white mb-6 px-2">{cat.name}</h2>
 
-        {!manage && (
-          <div className="flex gap-3 mb-8">
-            {[
-              { status: 'done', ico: 'check', label: 'סיימתי היום', bg: '#059669', activeBg: 'rgba(16,185,129,0.1)', borderCol: 'rgba(16,185,129,0.3)', textCol: '#34d399' },
-              { status: 'missed', ico: 'x', label: 'דילגתי היום', bg: '#e11d48', activeBg: 'rgba(244,63,94,0.1)', borderCol: 'rgba(244,63,94,0.3)', textCol: '#fb7185' },
-            ].map(({ status, ico, label, bg, activeBg, borderCol, textCol }) => {
-              const active = todayRec?.status === status && todayRec?.type === workout;
-              return (
-                <button key={status} onClick={() => updateHist(todayKey, status, workout)}
-                  className={`flex-1 flex flex-col items-center justify-center py-4 rounded-2xl btn-press transition-all duration-300 ${active ? 'scale-105' : ''}`}
-                  style={{ background: active ? bg : activeBg, border: `1px solid ${active ? bg : borderCol}`, color: active ? 'white' : textCol, boxShadow: active ? `0 8px 25px ${bg}60` : 'none' }}>
-                  <Ic n={ico} size={24} cls="mb-1.5"/>
-                  <span className="font-black text-sm">{label}</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
         <div className="space-y-4">
           {cat.exercises.map((ex, idx) => (
-            <div key={ex.id} className="flex gap-2">
+            <div key={ex.id} className="flex gap-2"
+                 draggable={manage}
+                 onDragStart={(e) => handleDragStart(e, 'ex', idx, ex)}
+                 onDragEnd={handleDragEnd}
+                 onDragOver={(e) => handleDragOver(e, idx)}
+                 onDragLeave={handleDragLeave}
+                 onDrop={(e) => handleDrop(e, 'ex', idx)}>
+              
               {manage && (
-                <div className="flex flex-col gap-1 justify-center">
-                  <button onClick={() => moveEx(idx, -1)} className="p-2.5 rounded-xl btn-press bg-white/5 text-gray-400"><Ic n="arrowUp" size={16}/></button>
-                  <button onClick={() => moveEx(idx, 1)} className="p-2.5 rounded-xl btn-press bg-white/5 text-gray-400"><Ic n="arrowDown" size={16}/></button>
+                <div className="p-2 cursor-grab text-gray-500 flex flex-col justify-center opacity-50 hover:opacity-100">
+                  <Ic n="drag" size={20}/>
                 </div>
               )}
-              <div className={`flex-1 p-5 rounded-2xl relative overflow-hidden flex justify-between items-center transition-colors btn-press ${manage ? 'bg-blue-500/10 border border-blue-500/30' : 'card'}`}
+
+              <div className={`flex-1 p-5 rounded-2xl relative overflow-hidden flex flex-col transition-colors btn-press ${manage ? 'bg-blue-500/10 border border-blue-500/30' : 'card'}`}
                    onClick={() => setEditEx(ex)}>
                 <div className="absolute top-0 right-0 w-1.5 h-full opacity-60 rounded-l-full" style={{ backgroundColor: cat.hex }}/>
-                <div className="flex-1 pr-3">
-                  <h4 className="font-black text-lg mb-2 text-white">{ex.name}</h4>
-                  <div className="flex gap-5 text-sm mb-2">
-                    <span className="text-gray-400 font-bold">{ex.sets} <span className="text-[10px]">סטים</span></span>
-                    <span className="text-gray-400 font-bold">{ex.reps} <span className="text-[10px]">חזרות</span></span>
-                    <span className="font-black drop-shadow-sm" style={{ color: cat.hex }}>{ex.weight} <span className="text-[10px]">ק"ג</span></span>
+                
+                <div className="flex justify-between items-start pr-3">
+                   <div className="flex-1">
+                    <h4 className="font-black text-lg mb-2 text-white">{ex.name}</h4>
+                    <div className="flex gap-5 text-sm mb-2">
+                      <span className="text-gray-400 font-bold">{ex.sets} <span className="text-[10px]">סטים</span></span>
+                      <span className="text-gray-400 font-bold">{ex.reps} <span className="text-[10px]">חזרות</span></span>
+                      <span className="font-black drop-shadow-sm" style={{ color: cat.hex }}>{ex.weight} <span className="text-[10px]">ק"ג</span></span>
+                    </div>
+                    {ex.notes && <p className="text-xs text-gray-500 italic bg-black/20 p-2 rounded-lg inline-block border border-white/5">{ex.notes}</p>}
+                    
+                    {/* Inline view of completed sets if tracked */}
+                    {!manage && prefs.setTable && ex.setDetails && ex.setDetails.some(s => s.done) && (
+                      <div className="mt-3 flex gap-2 flex-wrap">
+                        {ex.setDetails.map((s, i) => s.done && (
+                           <span key={i} className="text-[10px] font-bold px-2 py-1 rounded-md bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                             סט {i+1}: {s.reps} חז'
+                           </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  {ex.notes && <p className="text-xs text-gray-500 italic bg-black/20 p-2 rounded-lg inline-block border border-white/5">{ex.notes}</p>}
+                  
+                  {manage && (
+                    <div className="flex gap-2">
+                       <button onClick={(e) => { e.stopPropagation(); copyExercise(ex); }} className="p-2.5 rounded-xl btn-press bg-white/5 text-gray-400"><Ic n="copy" size={18}/></button>
+                       <button onClick={(e) => { e.stopPropagation(); delEx(ex.id); }} className="p-2.5 rounded-xl btn-press bg-rose-500/10 text-rose-500 border border-rose-500/20"><Ic n="trash" size={18}/></button>
+                    </div>
+                  )}
                 </div>
-                {manage && (
-                   <button onClick={(e) => { e.stopPropagation(); delEx(ex.id); }} className="p-3 rounded-xl btn-press bg-rose-500/10 text-rose-500 border border-rose-500/20"><Ic n="trash" size={18}/></button>
-                )}
               </div>
             </div>
           ))}
+          
           {manage && (
-            <button onClick={addEx} className="w-full mt-4 p-5 rounded-2xl font-bold flex flex-col items-center gap-2 btn-press border-2 border-dashed border-white/20 text-gray-400 hover:text-white hover:border-white/40 transition-colors">
-              <Ic n="plus" size={24}/> הוסף תרגיל למערך
-            </button>
+            <div className="flex gap-2 mt-4">
+              <button onClick={addEx} className="flex-1 p-5 rounded-2xl font-bold flex flex-col items-center gap-2 btn-press border-2 border-dashed border-white/20 text-gray-400 hover:text-white hover:border-white/40 transition-colors">
+                <Ic n="plus" size={24}/> הוסף תרגיל
+              </button>
+              {copiedEx && (
+                <button onClick={pasteExercise} className="flex-1 p-5 rounded-2xl font-bold flex flex-col items-center gap-2 btn-press border-2 border-dashed border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-colors">
+                  <Ic n="paste" size={24}/> הדבק תרגיל
+                </button>
+              )}
+            </div>
           )}
         </div>
+
+        {/* Workout Summary */}
+        {!manage && (
+          <div className="mt-10 p-6 card2 border-t-4" style={{borderTopColor: cat.hex}}>
+            <h3 className="font-black text-sm mb-4 text-white">סיכום אימון משוער</h3>
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-gray-400 font-bold">סה"כ תרגילים:</span>
+              <span className="font-black text-white">{totalExercises}</span>
+            </div>
+            <div className="h-px bg-white/10 my-3"></div>
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-gray-400 font-bold">נפח משקל כולל:</span>
+              <span className="font-black text-lg" style={{color: cat.hex}}>{totalWeight.toLocaleString()} ק"ג</span>
+            </div>
+            <p className="text-[10px] text-gray-500 mt-2">*חישוב גס המבוסס על (סטים × חזרות × משקל ראשון).</p>
+          </div>
+        )}
       </div>
     );
   };
@@ -695,37 +846,13 @@ function App() {
                 <span className="text-xs font-bold text-gray-400">{cnt > 0 ? cnt : ''}</span>
                 <div className="w-full rounded-t-lg transition-all duration-700 ease-out" style={{
                   height: `${Math.max((cnt / maxW) * 90, cnt > 0 ? 8 : 4)}px`,
-                  background: cnt > 0 ? `linear-gradient(180deg, ${i === 7 ? 'var(--primary)' : '#475569'}, ${i === 7 ? 'var(--primary)' : '#1e293b'})` : 'rgba(255,255,255,0.05)',
+                  background: cnt > 0 ? `linear-gradient(180deg, var(--primary), transparent)` : 'rgba(255,255,255,0.05)',
                   boxShadow: i === 7 && cnt > 0 ? '0 0 10px var(--primary-glow)' : 'none',
                   opacity: cnt > 0 ? 0.6 + (cnt / maxW) * 0.4 : 1,
                 }}/>
                 <span className="text-[9px] text-gray-500 font-bold">{i === 7 ? 'נוכחי' : `ש' ${8-i}`}</span>
               </div>
             ))}
-          </div>
-        </div>
-
-        <div className="card p-6 mb-6">
-          <h3 className="font-black text-sm mb-5 text-white">התפלגות סוגי אימון</h3>
-          <div className="space-y-4">
-            {cats.map(cat => {
-              const cnt = catBreak[cat.id] || 0;
-              const pct = stats.totalDone > 0 ? (cnt / stats.totalDone) * 100 : 0;
-              return (
-                <div key={cat.id}>
-                  <div className="flex justify-between text-sm mb-2">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: cat.hex, boxShadow: `0 0 6px ${cat.hex}` }}/>
-                      <span className="font-bold text-white">{cat.name}</span>
-                    </div>
-                    <span className="font-medium text-gray-400">{cnt} אימונים ({Math.round(pct)}%)</span>
-                  </div>
-                  <div className="h-2.5 rounded-full overflow-hidden bg-white/5 border border-white/5">
-                    <div className="h-full rounded-full transition-all duration-1000 ease-out" style={{ width: `${pct}%`, backgroundColor: cat.hex, boxShadow: `0 0 10px ${cat.hex}80` }}/>
-                  </div>
-                </div>
-              );
-            })}
           </div>
         </div>
       </div>
@@ -745,6 +872,7 @@ function App() {
           <Toggle label="טיימר מנוחה צף" icon="clock" checked={prefs.timer} onChange={v => setPrefs({...prefs, timer: v})} />
           <Toggle label="לוח שנה במסך ראשי" icon="calendar" checked={prefs.calendar} onChange={v => setPrefs({...prefs, calendar: v})} />
           <Toggle label="עמוד סטטיסטיקה ומעקב" icon="barChart" checked={prefs.stats} onChange={v => setPrefs({...prefs, stats: v})} />
+          <Toggle label="טבלת מעקב לכל סט" icon="edit" checked={prefs.setTable} onChange={v => setPrefs({...prefs, setTable: v})} />
         </div>
       </div>
 
@@ -811,9 +939,6 @@ function App() {
           
           <button onClick={() => window.location.reload(true)} className="w-full p-4 rounded-xl font-black flex items-center justify-center gap-2.5 btn-press bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 transition-colors">
             <Ic n="refresh" size={20}/> כפה רענון גרסה מהשרת
-          </button>
-          <button onClick={resetAll} className="w-full p-4 rounded-xl font-black flex items-center justify-center gap-2.5 btn-press bg-rose-500/10 border border-rose-500/30 text-rose-500 hover:bg-rose-500/20 transition-colors mt-3">
-            <Ic n="trash" size={20}/> איפוס מוחלט של המערכת
           </button>
         </div>
       </div>
@@ -935,7 +1060,7 @@ function App() {
       )}
 
       {/* MODALS */}
-      {editEx && <ExerciseEditModal exercise={editEx} onSave={saveEx} onClose={() => setEditEx(null)} />}
+      {editEx && <ExerciseEditModal exercise={editEx} onSave={saveEx} onClose={() => setEditEx(null)} prefs={prefs} />}
       {selDate && <DayInfoModal dateInfo={selDate} onClose={() => setSelDate(null)} history={hist} categories={cats} schedule={sched} onUpdateStatus={updateHist} />}
     </div>
   );
