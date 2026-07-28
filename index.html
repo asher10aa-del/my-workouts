@@ -142,7 +142,7 @@ const S = {
   get: (k, d) => { try { const v = localStorage.getItem(k); return v != null ? JSON.parse(v) : d; } catch { return d; } },
   set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { console.warn('Storage error', e); } }
 };
-const VER = 'v27';
+const VER = 'v28';
 
 const playBeep = () => {
   try {
@@ -461,8 +461,9 @@ function useDraggableList(initialItems, onItemsReordered) {
 function App() {
   const [page, setPage] = useState('home');
   const [workout, setWorkout] = useState(null);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   
-  const getInitial = (key, def) => S.get(`wk_${VER}_${key}`, S.get(`wk_v26_${key}`, S.get(`wk_v25_${key}`, S.get(`wk_v24_${key}`, S.get(`wk_v16_${key}`, def)))));
+  const getInitial = (key, def) => S.get(`wk_${VER}_${key}`, S.get(`wk_v27_${key}`, S.get(`wk_v26_${key}`, S.get(`wk_v25_${key}`, S.get(`wk_v24_${key}`, S.get(`wk_v16_${key}`, def))))));
   
   const [cats, setCats] = useState(() => getInitial('cats', DEF_CATS));
   const [hist, setHist] = useState(() => getInitial('hist', {}));
@@ -487,10 +488,12 @@ function App() {
   
   const navigate = (newPage, newWorkout = null) => {
     scrollPositions.current[`${page}_${workout || 'main'}`] = window.scrollY;
+    setIsTransitioning(true);
     setPage(newPage);
     setWorkout(newWorkout);
     setTimeout(() => {
       window.scrollTo(0, scrollPositions.current[`${newPage}_${newWorkout || 'main'}`] || 0);
+      setTimeout(() => setIsTransitioning(false), 50);
     }, 0);
   };
 
@@ -684,7 +687,7 @@ function App() {
   }, [calDate, hist, cats, sched, today.getMonth(), today.getFullYear(), today.getDate(), prefs.calendar]);
 
   const renderHome = () => (
-    <div className={`flex flex-col gap-5 p-5 pb-28 fade-in`} dir="rtl">
+    <div className={`flex flex-col gap-5 p-5 pb-28 ${!isTransitioning ? 'fade-in' : ''}`} dir="rtl">
       <div className="flex justify-between items-center mt-6 px-1">
         <h1 className="text-2xl font-black text-white">האימונים שלי</h1>
         <button onClick={enterManage} className="p-3 rounded-2xl btn-press bg-white/5 border border-white/10 text-gray-300">
@@ -742,7 +745,7 @@ function App() {
     const cat = dispCats.find(c => c.id === workout);
     if (!cat) return null;
     
-    // Setup draggable hook for exercises
+    // Create the draggable list hook ONLY for manage mode, otherwise it will try to reorder standard list
     const { items: draggExs, listRef: exListRef, dragInfo: exDragInfo, handleStart: handleExDragStart } = useDraggableList(cat.exercises, (reordered) => {
       if (manage) {
          const newCats = [...draftCats];
@@ -752,8 +755,6 @@ function App() {
       }
     });
 
-    // CRITICAL FIX: If manage mode is OFF, we render the raw exercises array.
-    // If it's ON, we render the draggable hook's output.
     const exercisesToRender = manage ? draggExs : cat.exercises;
 
     const totalExercises = cat.exercises.length;
@@ -767,7 +768,7 @@ function App() {
     });
 
     return (
-      <div className={`p-5 pb-32 fade-in`} dir="rtl">
+      <div className={`p-5 pb-32 ${!isTransitioning ? 'fade-in' : ''}`} dir="rtl">
         <div className="flex justify-between items-center mt-6 mb-8 px-1">
           {!manage ? (
             <button onClick={() => navigate('home', null)} className="flex items-center gap-2 btn-press text-gray-400 bg-white/5 px-4 py-2 rounded-xl">
@@ -781,9 +782,9 @@ function App() {
 
         <h2 className="text-4xl font-black text-white mb-6 px-2">{cat.name}</h2>
 
-        <div className="space-y-4" ref={exListRef}>
+        <div className="space-y-4" ref={manage ? exListRef : null}>
           {exercisesToRender.map((ex, idx) => {
-             const isDragging = exDragInfo.currentIndex === idx && exDragInfo.isDragging;
+             const isDragging = manage && exDragInfo.currentIndex === idx && exDragInfo.isDragging;
              return (
               <div key={ex.id} className={`flex gap-2 transition-all ${isDragging ? 'touch-dragging' : ''}`}>
                 
@@ -872,7 +873,7 @@ function App() {
     const rate = stats.monthDone + stats.monthMissed > 0 ? Math.round((stats.monthDone / (stats.monthDone + stats.monthMissed)) * 100) : 0;
     
     return (
-      <div className={`p-5 pb-28 slide-up`} dir="rtl">
+      <div className={`p-5 pb-28 ${!isTransitioning ? 'slide-up' : ''}`} dir="rtl">
         <h2 className="text-3xl font-black mt-6 mb-8 text-white px-2">סטטיסטיקה ומעקב</h2>
 
         <div className="grid grid-cols-2 gap-4 mb-6">
@@ -909,7 +910,6 @@ function App() {
           </div>
         </div>
 
-        {/* RE-ADDED: Category Breakdown Progress Bars */}
         <div className="card p-6 mb-6">
           <h3 className="font-black text-sm mb-5 text-white">התפלגות סוגי אימון</h3>
           <div className="space-y-4">
@@ -939,7 +939,7 @@ function App() {
   };
 
   const renderSettings = () => (
-    <div className={`p-5 pb-28 slide-up`} dir="rtl">
+    <div className={`p-5 pb-28 ${!isTransitioning ? 'slide-up' : ''}`} dir="rtl">
       <h2 className="text-3xl font-black mt-6 mb-8 text-white px-2">הגדרות מתקדמות</h2>
 
       <div className="card p-6 mb-5">
