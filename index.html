@@ -10,9 +10,15 @@
   <meta name="theme-color" content="#06070a">
   <link rel="manifest" href="manifest.json">
 
-  <!-- Embedded Offline Icon Generator -->
+  <!-- Auto-Clean Corrupted Old Cache & Generate Offline Icon -->
   <script>
     (function() {
+      try {
+        if ('caches' in window) {
+          caches.delete('workout-pro-offline-v30');
+        }
+      } catch (e) {}
+
       try {
         var c = document.createElement('canvas');
         c.width = 256; c.height = 256;
@@ -22,10 +28,16 @@
         grad.addColorStop(1, '#020617');
         ctx.fillStyle = grad;
         ctx.beginPath();
-        ctx.roundRect(0, 0, 256, 256, 56);
+        if (ctx.roundRect) ctx.roundRect(0, 0, 256, 256, 56);
+        else ctx.rect(0, 0, 256, 256);
         ctx.fill();
         ctx.fillStyle = '#3b82f6';
-        function rRect(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill(); }
+        function rRect(x, y, w, h, r) {
+          ctx.beginPath();
+          if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
+          else ctx.rect(x, y, w, h);
+          ctx.fill();
+        }
         rRect(98, 115, 60, 26, 6);
         ctx.fillStyle = '#60a5fa';
         rRect(66, 70, 28, 116, 10);
@@ -43,10 +55,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- Direct Non-Redirecting CDN Scripts for 100% iOS Safari Compatibility -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
 
   <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -116,7 +130,6 @@
       --primary-glow: rgba(249, 115, 22, 0.38); --accent: #ef4444;
     }
 
-    /* Card Style Variations */
     [data-cardstyle="bubble"] { --card-radius: 2rem; }
     [data-cardstyle="glass"]  { --card-radius: 1.35rem; }
     [data-cardstyle="neon"]   { --card-radius: 1.75rem; }
@@ -130,7 +143,6 @@
       overflow-x: hidden;
     }
 
-    /* Fixed safe-area top padding so top buttons are NEVER blocked by iPhone Notch / Dynamic Island */
     .safe-top {
       padding-top: max(calc(env(safe-area-inset-top, 0px) + 18px), 54px);
     }
@@ -221,14 +233,13 @@
 <script type="text/babel">
 const { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } = React;
 
-/* ── STORAGE & SEAMLESS MIGRATION ── */
 const S = {
   get: (k, d) => { try { const v = localStorage.getItem(k); return v != null ? JSON.parse(v) : d; } catch { return d; } },
   set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { console.warn('Storage error', e); } }
 };
-const VER = 'v31';
+const VER = 'v32';
+const uid = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('id_' + Date.now() + '_' + Math.random().toString(36).slice(2));
 
-/* ── SAFE MODAL SCROLL LOCK (NO JUMP TO TOP!) ── */
 function useModalScrollLock() {
   useLayoutEffect(() => {
     const savedY = window.scrollY;
@@ -322,7 +333,6 @@ const Ic = React.memo(({n, size=22, cls='', style={}}) => (
   </svg>
 ));
 
-/* ── HELPERS ── */
 function parseFirstWeight(wStr) {
   if (!wStr) return 0;
   const m = String(wStr).match(/(\d+(\.\d+)?)/);
@@ -339,7 +349,7 @@ function calc1RM(weightStr, reps) {
 
 function calcCategoryMetrics(cat) {
   let totalSets = 0, doneSets = 0, totalVol = 0;
-  (cat.exercises || []).forEach(ex => {
+  (cat?.exercises || []).forEach(ex => {
     const numSets = parseInt(ex.sets) || 0;
     const baseReps = parseInt(ex.reps) || 0;
     const baseWeight = parseFirstWeight(ex.weight);
@@ -360,34 +370,34 @@ function calcCategoryMetrics(cat) {
 }
 
 function calcStats(history) {
+  const safeHist = history && typeof history === 'object' ? history : {};
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
   let streak = 0, d = new Date(today);
   
-  if (!history[todayStr] || history[todayStr]?.status !== 'done') d.setDate(d.getDate() - 1);
+  if (!safeHist[todayStr] || safeHist[todayStr]?.status !== 'done') d.setDate(d.getDate() - 1);
   while (true) {
     const s = d.toISOString().split('T')[0];
-    if (history[s]?.status === 'done') { streak++; d.setDate(d.getDate() - 1); }
+    if (safeHist[s]?.status === 'done') { streak++; d.setDate(d.getDate() - 1); }
     else break;
   }
   
-  const entries = Object.entries(history);
-  const totalDone = entries.filter(([, r]) => r.status === 'done').length;
+  const entries = Object.entries(safeHist);
+  const totalDone = entries.filter(([, r]) => r?.status === 'done').length;
   const mStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-  const monthDone = entries.filter(([dt, r]) => dt >= mStart && r.status === 'done').length;
-  const monthMissed = entries.filter(([dt, r]) => dt >= mStart && r.status === 'missed').length;
+  const monthDone = entries.filter(([dt, r]) => dt >= mStart && r?.status === 'done').length;
+  const monthMissed = entries.filter(([dt, r]) => dt >= mStart && r?.status === 'missed').length;
   
   const weeks = [];
   for (let w = 7; w >= 0; w--) {
     const ws = new Date(today); ws.setDate(today.getDate() - (w * 7 + today.getDay()));
     const we = new Date(ws); we.setDate(ws.getDate() + 6);
     const wsS = ws.toISOString().split('T')[0], weS = we.toISOString().split('T')[0];
-    weeks.push(entries.filter(([dt, r]) => dt >= wsS && dt <= weS && r.status === 'done').length);
+    weeks.push(entries.filter(([dt, r]) => dt >= wsS && dt <= weS && r?.status === 'done').length);
   }
   return { streak, totalDone, monthDone, monthMissed, weeks };
 }
 
-/* ── UI COMPONENTS ── */
 const Toggle = ({ label, sub, checked, onChange, icon }) => (
   <div className="flex items-center justify-between p-3.5 rounded-2xl bg-black/25 border border-white/5 btn-press" onClick={() => onChange(!checked)}>
     <div className="flex items-center gap-3">
@@ -407,7 +417,6 @@ const Toggle = ({ label, sub, checked, onChange, icon }) => (
   </div>
 );
 
-/* ── MODALS (FIXED: NO SCROLL JUMP & EASY TO REACH BUTTONS) ── */
 function CategoryEditModal({ category, onSave, onClose }) {
   useModalScrollLock();
   const [d, setD] = useState({ ...category });
@@ -516,7 +525,6 @@ function ExerciseEditModal({ exercise, catHex, onSave, onClose, prefs }) {
     <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-3 pb-5 fade-in" style={{ background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(14px)' }} onClick={onClose}>
       <div className="bento-card-elevated w-full max-w-md relative pop-in max-h-[84vh] flex flex-col overflow-hidden" dir="rtl" onClick={(e) => e.stopPropagation()}>
         
-        {/* Sticky Comfortable Header inside Modal */}
         <div className="flex justify-between items-center px-5 pt-4 pb-3 border-b border-white/10 bg-black/20">
           <div>
             <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">עריכת תרגיל ומעקב סטים</span>
@@ -527,7 +535,6 @@ function ExerciseEditModal({ exercise, catHex, onSave, onClose, prefs }) {
           </button>
         </div>
 
-        {/* Scrollable Content */}
         <div className="p-5 overflow-y-auto no-scroll space-y-4 flex-1">
           {est1RM > 0 && (
             <div className="flex items-center justify-between px-3.5 py-2 rounded-2xl text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
@@ -542,7 +549,6 @@ function ExerciseEditModal({ exercise, catHex, onSave, onClose, prefs }) {
               value={d.name} onChange={e => setD(p => ({ ...p, name: e.target.value }))} />
           </div>
 
-          {/* Sets, Reps, Weight with Quick Steppers */}
           <div className="grid grid-cols-3 gap-2.5">
             <div className="p-2.5 rounded-2xl bg-black/30 border border-white/5">
               <label className="text-[11px] font-bold mb-1.5 block text-center text-gray-400">סטים</label>
@@ -619,7 +625,6 @@ function ExerciseEditModal({ exercise, catHex, onSave, onClose, prefs }) {
           )}
         </div>
 
-        {/* Sticky Bottom Actions inside Modal */}
         <div className="p-4 border-t border-white/10 bg-black/30 flex gap-2.5">
           <button type="button" onClick={() => onSave(d)} className="flex-[2] p-4 rounded-2xl font-black text-white text-base btn-press transition-all shadow-lg" style={{background: catHex || 'var(--primary)'}}>
             שמור שינויים
@@ -689,7 +694,6 @@ function DayInfoModal({ dateInfo, onClose, history, categories, schedule, onUpda
   );
 }
 
-/* ── ISOLATED PERFORMANCE TIMER WIDGET ── */
 function TimerWidget({ prefs, manageMode }) {
   const [timeLeft, setTimeLeft] = useState(0);
   const [totalTime, setTotalTime] = useState(60);
@@ -799,18 +803,22 @@ function App() {
   const [workout, setWorkout] = useState(null);
   const [showFullCal, setShowFullCal] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
-  const [cacheReady, setCacheReady] = useState(false);
 
-  // Seamless Migration from all previous versions (v31 -> v16)
-  const getInitial = (key, def) => S.get(`wk_${VER}_${key}`, S.get(`wk_v30_${key}`, S.get(`wk_v29_${key}`, S.get(`wk_v28_${key}`, S.get(`wk_v27_${key}`, S.get(`wk_v26_${key}`, S.get(`wk_v25_${key}`, S.get(`wk_v16_${key}`, def))))))));
+  const getInitial = (key, def) => S.get(`wk_${VER}_${key}`, S.get(`wk_v31_${key}`, S.get(`wk_v30_${key}`, S.get(`wk_v29_${key}`, S.get(`wk_v28_${key}`, S.get(`wk_v27_${key}`, S.get(`wk_v26_${key}`, S.get(`wk_v25_${key}`, S.get(`wk_v16_${key}`, def)))))))));
   
-  const [cats, setCats] = useState(() => getInitial('cats', DEF_CATS));
-  const [hist, setHist] = useState(() => getInitial('hist', {}));
+  const [cats, setCats] = useState(() => {
+    const c = getInitial('cats', null) || S.get('workout_v16_data', DEF_CATS);
+    return Array.isArray(c) && c.length > 0 ? c : DEF_CATS;
+  });
+  const [hist, setHist] = useState(() => getInitial('hist', null) || S.get('workout_v16_history', {}));
   const [sched, setSched] = useState(() => getInitial('sched', DEF_SCHED));
   const [theme, setTheme] = useState(() => getInitial('theme', 'default'));
   const [prefs, setPrefs] = useState(() => ({ ...DEF_PREFS, ...getInitial('prefs', DEF_PREFS) }));
-  const [bodyLogs, setBodyLogs] = useState(() => getInitial('bodyLogs', []));
-  const [habits, setHabits] = useState(() => getInitial('habits', {}));
+  const [bodyLogs, setBodyLogs] = useState(() => {
+    const b = getInitial('bodyLogs', []);
+    return Array.isArray(b) ? b : [];
+  });
+  const [habits, setHabits] = useState(() => getInitial('habits', {}) || {});
   const [newWeightInput, setNewWeightInput] = useState('');
 
   const [manage, setManage] = useState(false);
@@ -840,36 +848,19 @@ function App() {
     document.documentElement.setAttribute('data-cardstyle', prefs.cardStyle || 'bubble');
   }, [theme, prefs.cardStyle]);
 
-  // Save to v31, v30, and v29 for backward safety
-  useEffect(() => { S.set(`wk_${VER}_cats`, cats); S.set(`wk_v30_cats`, cats); S.set(`wk_v29_cats`, cats); }, [cats]);
-  useEffect(() => { S.set(`wk_${VER}_hist`, hist); S.set(`wk_v30_hist`, hist); S.set(`wk_v29_hist`, hist); }, [hist]);
-  useEffect(() => { S.set(`wk_${VER}_sched`, sched); S.set(`wk_v30_sched`, sched); S.set(`wk_v29_sched`, sched); }, [sched]);
-  useEffect(() => { S.set(`wk_${VER}_theme`, theme); S.set(`wk_v30_theme`, theme); S.set(`wk_v29_theme`, theme); }, [theme]);
-  useEffect(() => { S.set(`wk_${VER}_prefs`, prefs); S.set(`wk_v30_prefs`, prefs); S.set(`wk_v29_prefs`, prefs); }, [prefs]);
-  useEffect(() => { S.set(`wk_${VER}_bodyLogs`, bodyLogs); S.set(`wk_v30_bodyLogs`, bodyLogs); }, [bodyLogs]);
+  useEffect(() => { S.set(`wk_${VER}_cats`, cats); S.set(`wk_v31_cats`, cats); S.set(`wk_v29_cats`, cats); }, [cats]);
+  useEffect(() => { S.set(`wk_${VER}_hist`, hist); S.set(`wk_v31_hist`, hist); S.set(`wk_v29_hist`, hist); }, [hist]);
+  useEffect(() => { S.set(`wk_${VER}_sched`, sched); S.set(`wk_v31_sched`, sched); S.set(`wk_v29_sched`, sched); }, [sched]);
+  useEffect(() => { S.set(`wk_${VER}_theme`, theme); S.set(`wk_v31_theme`, theme); S.set(`wk_v29_theme`, theme); }, [theme]);
+  useEffect(() => { S.set(`wk_${VER}_prefs`, prefs); S.set(`wk_v31_prefs`, prefs); S.set(`wk_v29_prefs`, prefs); }, [prefs]);
+  useEffect(() => { S.set(`wk_${VER}_bodyLogs`, bodyLogs); }, [bodyLogs]);
   useEffect(() => { S.set(`wk_${VER}_habits`, habits); }, [habits]);
 
-  // Network & Offline Pre-caching Listener
   useEffect(() => {
     const onOnline = () => setIsOffline(false);
     const onOffline = () => setIsOffline(true);
     window.addEventListener('online', onOnline);
     window.addEventListener('offline', onOffline);
-
-    if ('caches' in window) {
-      caches.open('workout-pro-offline-v30').then(cache => {
-        const urls = [
-          window.location.href,
-          './index.html',
-          './manifest.json',
-          'https://cdn.tailwindcss.com',
-          'https://unpkg.com/react@18/umd/react.production.min.js',
-          'https://unpkg.com/react-dom@18/umd/react-dom.production.min.js',
-          'https://unpkg.com/@babel/standalone/babel.min.js'
-        ];
-        Promise.allSettled(urls.map(u => cache.add(u))).then(() => setCacheReady(true));
-      }).catch(() => {});
-    }
     return () => {
       window.removeEventListener('online', onOnline);
       window.removeEventListener('offline', onOffline);
@@ -889,7 +880,7 @@ function App() {
   const cancelManage = () => { setManage(false); setDraftCats(null); };
 
   const addCat = () => {
-    const newCat = { id: crypto.randomUUID(), name: 'תוכנית חדשה', hex: '#8b5cf6', icon: 'dumbbell', exercises: [] };
+    const newCat = { id: uid(), name: 'תוכנית חדשה', hex: '#8b5cf6', icon: 'dumbbell', exercises: [] };
     setDraftCats([...draftCats, newCat]);
     setEditCatModal({ index: draftCats.length, data: newCat });
   };
@@ -906,20 +897,20 @@ function App() {
 
   const addEx = () => {
     const a = [...draftCats], ci = a.findIndex(c => c.id === workout);
-    const ex = { id: crypto.randomUUID(), name: 'תרגיל חדש', sets: 3, reps: 10, weight: '20', notes: '', setDetails: [{reps:10, weight:'20', type:'N', done:false},{reps:10, weight:'20', type:'N', done:false},{reps:10, weight:'20', type:'N', done:false}] };
-    a[ci] = { ...a[ci], exercises: [...a[ci].exercises, ex] }; setDraftCats(a); setEditEx(ex);
+    const ex = { id: uid(), name: 'תרגיל חדש', sets: 3, reps: 10, weight: '20', notes: '', setDetails: [{reps:10, weight:'20', type:'N', done:false},{reps:10, weight:'20', type:'N', done:false},{reps:10, weight:'20', type:'N', done:false}] };
+    a[ci] = { ...a[ci], exercises: [...(a[ci].exercises || []), ex] }; setDraftCats(a); setEditEx(ex);
   };
   
   const delEx = (id) => {
     if (confirm('למחוק תרגיל זה מהרשימה?')) {
       const a = [...draftCats], ci = a.findIndex(c => c.id === workout);
-      a[ci] = { ...a[ci], exercises: a[ci].exercises.filter(e => e.id !== id) }; setDraftCats(a);
+      a[ci] = { ...a[ci], exercises: (a[ci].exercises || []).filter(e => e.id !== id) }; setDraftCats(a);
     }
   };
 
   const moveEx = (i, dir) => {
     const a = [...draftCats], ci = a.findIndex(c => c.id === workout);
-    const exs = [...a[ci].exercises], j = i + dir;
+    const exs = [...(a[ci].exercises || [])], j = i + dir;
     if (j < 0 || j >= exs.length) return;
     [exs[i], exs[j]] = [exs[j], exs[i]]; a[ci] = { ...a[ci], exercises: exs }; setDraftCats(a);
   };
@@ -927,10 +918,10 @@ function App() {
   const saveEx = (upd) => {
     if (manage) {
       const a = [...draftCats], ci = a.findIndex(c => c.id === workout);
-      a[ci] = { ...a[ci], exercises: a[ci].exercises.map(e => e.id === upd.id ? upd : e) }; setDraftCats(a);
+      a[ci] = { ...a[ci], exercises: (a[ci].exercises || []).map(e => e.id === upd.id ? upd : e) }; setDraftCats(a);
     } else {
       const a = [...cats], ci = a.findIndex(c => c.id === workout);
-      a[ci] = { ...a[ci], exercises: a[ci].exercises.map(e => e.id === upd.id ? upd : e) }; setCats(a);
+      a[ci] = { ...a[ci], exercises: (a[ci].exercises || []).map(e => e.id === upd.id ? upd : e) }; setCats(a);
     }
     setEditEx(null);
   };
@@ -939,7 +930,7 @@ function App() {
     const a = [...cats];
     const ci = a.findIndex(c => c.id === workout);
     if (ci === -1) return;
-    const exs = [...a[ci].exercises];
+    const exs = [...(a[ci].exercises || [])];
     const ei = exs.findIndex(e => e.id === exId);
     if (ei === -1) return;
     const ex = { ...exs[ei] };
@@ -961,7 +952,7 @@ function App() {
     if (ci === -1) return;
     a[ci] = {
       ...a[ci],
-      exercises: a[ci].exercises.map(ex => ({
+      exercises: (a[ci].exercises || []).map(ex => ({
         ...ex,
         setDetails: (ex.setDetails || []).map(sd => ({ ...sd, done: false }))
       }))
@@ -972,9 +963,9 @@ function App() {
   const copyExercise = (ex) => { setCopiedEx(ex); alert('התרגיל הועתק! כעת ניתן להדביק אותו בכל תוכנית אימון.'); };
   const pasteExercise = () => {
     if (!copiedEx) return;
-    const newEx = { ...copiedEx, id: crypto.randomUUID() };
+    const newEx = { ...copiedEx, id: uid() };
     const a = [...draftCats], ci = a.findIndex(c => c.id === workout);
-    a[ci] = { ...a[ci], exercises: [...a[ci].exercises, newEx] };
+    a[ci] = { ...a[ci], exercises: [...(a[ci].exercises || []), newEx] };
     setDraftCats(a);
   };
 
@@ -1027,7 +1018,7 @@ function App() {
     try {
       if ('serviceWorker' in navigator) {
         const regs = await navigator.serviceWorker.getRegistrations();
-        for (const r of regs) await r.update();
+        for (const r of regs) await r.unregister();
       }
       if ('caches' in window) {
         const keys = await caches.keys();
@@ -1146,13 +1137,12 @@ function App() {
     );
   };
 
-  /* ── HOME DASHBOARD (BENTO DESIGN WITH SAFE-TOP) ── */
+  /* ── HOME DASHBOARD ── */
   const renderHome = () => {
     const plannedMetrics = planned ? calcCategoryMetrics(planned) : null;
 
     return (
       <div className="flex flex-col gap-4 px-4 pb-32 safe-top" dir="rtl">
-        {/* Top Header - Comfortably below iPhone Notch / Dynamic Island */}
         <div className="flex justify-between items-center px-1">
           <div>
             <div className="flex items-center gap-2">
@@ -1177,10 +1167,8 @@ function App() {
           </div>
         </div>
 
-        {/* 7-Day Weekly Strip + Expandable Monthly Calendar */}
         {renderWeeklyStrip()}
 
-        {/* Hero Today's Workout Card */}
         <div className="bento-card-elevated p-5 relative overflow-hidden">
           <div className="absolute -top-12 -left-12 w-36 h-36 rounded-full blur-2xl pointer-events-none" style={{background: planned ? planned.hex : 'var(--primary)', opacity: 0.22}}/>
           <div className="flex justify-between items-start relative z-10">
@@ -1191,7 +1179,7 @@ function App() {
               <h2 className="text-3xl font-black text-white mt-2.5">{planned ? planned.name : 'יום מנוחה והתאוששות'}</h2>
               {planned && plannedMetrics && (
                 <p className="text-xs text-gray-400 mt-1 font-medium">
-                  {planned.exercises.length} תרגילים • {plannedMetrics.totalSets} סטים • נפח ~{plannedMetrics.totalVol.toLocaleString()} ק"ג
+                  {(planned.exercises || []).length} תרגילים • {plannedMetrics.totalSets} סטים • נפח ~{plannedMetrics.totalVol.toLocaleString()} ק"ג
                 </p>
               )}
             </div>
@@ -1219,7 +1207,6 @@ function App() {
           )}
         </div>
 
-        {/* Workout Programs Bento Grid */}
         <div className="mt-1">
           <div className="flex justify-between items-center mb-3 px-1">
             <h3 className="text-sm font-black text-gray-300">תוכניות האימון שלך</h3>
@@ -1258,4 +1245,48 @@ function App() {
               return (
                 <button key={cat.id} onClick={() => navigate('home', cat.id)}
                   className="bento-card p-4 text-right flex flex-col justify-between btn-press relative overflow-hidden group min-h-[144px]">
-                  <div className="absolute top-0 right-0 w-full h-1 opacity-85" style={{backgroundColor:
+                  <div className="absolute top-0 right-0 w-full h-1 opacity-85" style={{backgroundColor: cat.hex}}/>
+                  <div className="flex justify-between items-start w-full">
+                    <span className="p-2.5 rounded-2xl bg-black/40 border border-white/5" style={{ color: cat.hex }}>
+                      <Ic n={cat.icon} size={20}/>
+                    </span>
+                    {m.pct > 0 && (
+                      <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">
+                        {m.pct}%
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-3">
+                    <div className="text-lg font-black text-white leading-tight truncate">{cat.name}</div>
+                    <div className="text-[11px] font-bold text-gray-400 mt-1">
+                      {(cat.exercises || []).length} תרגילים • {m.totalSets} סטים
+                    </div>
+                  </div>
+                  <div className="w-full h-1.5 bg-white/5 rounded-full mt-2.5 overflow-hidden">
+                    <div className="h-full transition-all duration-500" style={{width: `${m.pct}%`, backgroundColor: cat.hex}}/>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {manage && (
+            <button onClick={addCat} className="w-full mt-3 p-4 rounded-2xl font-bold flex items-center justify-center gap-2 btn-press border-2 border-dashed border-white/20 text-gray-200">
+              <Ic n="plus" size={20}/> הוסף תוכנית אימון חדשה
+            </button>
+          )}
+        </div>
+
+        {!manage && prefs.dailyHabits && (
+          <div className="bento-card p-4 mt-1">
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-xs font-black text-white flex items-center gap-1.5">
+                <Ic n="droplet" size={16} style={{color: '#38bdf8'}}/> מעקב תזונה ומים להיום
+              </span>
+              <span className="text-[11px] font-bold text-sky-400">{todayHabit.water || 0} / 8 כוסות</span>
+            </div>
+            <div className="flex items-center gap-2 mb-3">
+              {[...Array(8)].map((_, i) => {
+                const filled = i < (todayHabit.water || 0);
+                return (
+                  <button key={i} onClick={() => updateTodayHabit('water', filled && todayHabit.water === i + 1
