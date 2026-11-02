@@ -1,4 +1,4 @@
-const CACHE_NAME = 'workout-pro-v32';
+const CACHE_NAME = 'workout-pro-v33';
 const ASSETS = [
   './',
   './index.html',
@@ -12,25 +12,20 @@ const ASSETS = [
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return Promise.allSettled(ASSETS.map((url) => cache.add(url)));
-    })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
   );
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME) return caches.delete(key);
-        })
-      )
+      Promise.all(keys.map((key) => {
+        if (key !== CACHE_NAME) return caches.delete(key);
+      }))
     ).then(() => self.clients.claim())
   );
 });
 
-// Network-First: תמיד מציג את העדכון החדש כשיש רשת, ועובר לזיכרון מקומי כשאין אינטרנט
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   event.respondWith(
