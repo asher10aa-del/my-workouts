@@ -16,6 +16,7 @@
       try {
         if ('caches' in window) {
           caches.delete('workout-pro-offline-v30');
+          caches.delete('workout-pro-offline-v31');
         }
       } catch (e) {}
 
@@ -240,23 +241,6 @@ const S = {
 const VER = 'v32';
 const uid = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('id_' + Date.now() + '_' + Math.random().toString(36).slice(2));
 
-function useModalScrollLock() {
-  useLayoutEffect(() => {
-    const savedY = window.scrollY;
-    const html = document.documentElement;
-    const body = document.body;
-    const prevHtmlOverflow = html.style.overflow;
-    const prevBodyOverflow = body.style.overflow;
-    html.style.overflow = 'hidden';
-    body.style.overflow = 'hidden';
-    return () => {
-      html.style.overflow = prevHtmlOverflow;
-      body.style.overflow = prevBodyOverflow;
-      window.scrollTo(0, savedY);
-    };
-  }, []);
-}
-
 const playBeep = () => {
   try {
     if (navigator.vibrate) navigator.vibrate([150, 80, 150]);
@@ -418,7 +402,6 @@ const Toggle = ({ label, sub, checked, onChange, icon }) => (
 );
 
 function CategoryEditModal({ category, onSave, onClose }) {
-  useModalScrollLock();
   const [d, setD] = useState({ ...category });
 
   return (
@@ -469,8 +452,6 @@ function CategoryEditModal({ category, onSave, onClose }) {
 }
 
 function ExerciseEditModal({ exercise, catHex, onSave, onClose, prefs }) {
-  useModalScrollLock();
-
   const [d, setD] = useState(() => {
     const init = { notes: '', setDetails: [], ...exercise };
     const numSets = parseInt(init.sets) || 0;
@@ -639,8 +620,6 @@ function ExerciseEditModal({ exercise, catHex, onSave, onClose, prefs }) {
 }
 
 function DayInfoModal({ dateInfo, onClose, history, categories, schedule, onUpdateStatus }) {
-  useModalScrollLock();
-
   if (!dateInfo) return null;
   const dateObj = dateInfo.date;
   const dateStr = dateObj.toISOString().split('T')[0];
@@ -797,14 +776,15 @@ function TimerWidget({ prefs, manageMode }) {
   );
 }
 
-/* ══════════════ MAIN APPLICATION ══════════════ */
 function App() {
   const [page, setPage] = useState('home');
   const [workout, setWorkout] = useState(null);
   const [showFullCal, setShowFullCal] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [cacheReady, setCacheReady] = useState(false);
 
-  const getInitial = (key, def) => S.get(`wk_${VER}_${key}`, S.get(`wk_v31_${key}`, S.get(`wk_v30_${key}`, S.get(`wk_v29_${key}`, S.get(`wk_v28_${key}`, S.get(`wk_v27_${key}`, S.get(`wk_v26_${key}`, S.get(`wk_v25_${key}`, S.get(`wk_v16_${key}`, def)))))))));
+  // Load from standard location
+  const getInitial = (key, def) => S.get(`wk_v31_${key}`, S.get(`wk_v30_${key}`, S.get(`wk_v29_${key}`, S.get(`wk_v28_${key}`, S.get(`wk_v16_${key}`, def)))));
   
   const [cats, setCats] = useState(() => {
     const c = getInitial('cats', null) || S.get('workout_v16_data', DEF_CATS);
@@ -830,29 +810,23 @@ function App() {
   const [calDate, setCalDate] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [selDate, setSelDate] = useState(null);
   const fileRef = useRef(null);
-  const scrollPositions = useRef({});
   
   const navigate = (newPage, newWorkout = null) => {
-    scrollPositions.current[`${page}_${workout || 'main'}`] = window.scrollY;
     setPage(newPage);
     setWorkout(newWorkout);
+    window.scrollTo(0, 0);
   };
-
-  useLayoutEffect(() => {
-    const pos = scrollPositions.current[`${page}_${workout || 'main'}`] || 0;
-    window.scrollTo(0, pos);
-  }, [page, workout]);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     document.documentElement.setAttribute('data-cardstyle', prefs.cardStyle || 'bubble');
   }, [theme, prefs.cardStyle]);
 
-  useEffect(() => { S.set(`wk_${VER}_cats`, cats); S.set(`wk_v31_cats`, cats); S.set(`wk_v29_cats`, cats); }, [cats]);
-  useEffect(() => { S.set(`wk_${VER}_hist`, hist); S.set(`wk_v31_hist`, hist); S.set(`wk_v29_hist`, hist); }, [hist]);
-  useEffect(() => { S.set(`wk_${VER}_sched`, sched); S.set(`wk_v31_sched`, sched); S.set(`wk_v29_sched`, sched); }, [sched]);
-  useEffect(() => { S.set(`wk_${VER}_theme`, theme); S.set(`wk_v31_theme`, theme); S.set(`wk_v29_theme`, theme); }, [theme]);
-  useEffect(() => { S.set(`wk_${VER}_prefs`, prefs); S.set(`wk_v31_prefs`, prefs); S.set(`wk_v29_prefs`, prefs); }, [prefs]);
+  useEffect(() => { S.set(`wk_${VER}_cats`, cats); S.set(`wk_v31_cats`, cats); }, [cats]);
+  useEffect(() => { S.set(`wk_${VER}_hist`, hist); S.set(`wk_v31_hist`, hist); }, [hist]);
+  useEffect(() => { S.set(`wk_${VER}_sched`, sched); S.set(`wk_v31_sched`, sched); }, [sched]);
+  useEffect(() => { S.set(`wk_${VER}_theme`, theme); S.set(`wk_v31_theme`, theme); }, [theme]);
+  useEffect(() => { S.set(`wk_${VER}_prefs`, prefs); S.set(`wk_v31_prefs`, prefs); }, [prefs]);
   useEffect(() => { S.set(`wk_${VER}_bodyLogs`, bodyLogs); }, [bodyLogs]);
   useEffect(() => { S.set(`wk_${VER}_habits`, habits); }, [habits]);
 
@@ -861,6 +835,21 @@ function App() {
     const onOffline = () => setIsOffline(true);
     window.addEventListener('online', onOnline);
     window.addEventListener('offline', onOffline);
+
+    if ('caches' in window) {
+      caches.open('workout-pro-v32').then(cache => {
+        const urls = [
+          window.location.href,
+          './index.html',
+          './manifest.json',
+          'https://cdn.tailwindcss.com',
+          'https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js',
+          'https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js',
+          'https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js'
+        ];
+        Promise.allSettled(urls.map(u => cache.add(u))).then(() => setCacheReady(true));
+      }).catch(() => {});
+    }
     return () => {
       window.removeEventListener('online', onOnline);
       window.removeEventListener('offline', onOffline);
@@ -1028,7 +1017,6 @@ function App() {
     window.location.reload(true);
   };
 
-  /* ── WEEKLY STRIP & FULL CALENDAR ── */
   const renderWeeklyStrip = () => {
     if (!prefs.calendar) return null;
     const currWeekStart = new Date(today);
@@ -1137,7 +1125,6 @@ function App() {
     );
   };
 
-  /* ── HOME DASHBOARD ── */
   const renderHome = () => {
     const plannedMetrics = planned ? calcCategoryMetrics(planned) : null;
 
@@ -1289,4 +1276,501 @@ function App() {
               {[...Array(8)].map((_, i) => {
                 const filled = i < (todayHabit.water || 0);
                 return (
-                  <button key={i} onClick={() => updateTodayHabit('water', filled && todayHabit.water === i + 1
+                  <button key={i} onClick={() => updateTodayHabit('water', filled && todayHabit.water === i + 1 ? i : i + 1)}
+                    className={`flex-1 h-9 rounded-xl flex items-center justify-center btn-press border transition-all ${filled ? 'bg-sky-500/30 border-sky-400 text-sky-300' : 'bg-black/30 border-white/5 text-gray-600'}`}>
+                    <Ic n="droplet" size={14}/>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => updateTodayHabit('creatine', !todayHabit.creatine)}
+                className={`p-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 btn-press border transition-all ${todayHabit.creatine ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300' : 'bg-black/25 border-white/5 text-gray-400'}`}>
+                <Ic n="sparkles" size={15}/> קריאטין {todayHabit.creatine && '✓'}
+              </button>
+              <button onClick={() => updateTodayHabit('protein', !todayHabit.protein)}
+                className={`p-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 btn-press border transition-all ${todayHabit.protein ? 'bg-purple-500/20 border-purple-500/40 text-purple-300' : 'bg-black/25 border-white/5 text-gray-400'}`}>
+                <Ic n="flame" size={15}/> יעד חלבון {todayHabit.protein && '✓'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderWorkoutDetail = () => {
+    const cat = dispCats.find(c => c.id === workout);
+    if (!cat) return null;
+    const m = calcCategoryMetrics(cat);
+    const isMarkedDoneToday = hist[todayKey]?.status === 'done' && hist[todayKey]?.type === cat.id;
+
+    return (
+      <div className="px-4 pb-32 safe-top" dir="rtl">
+        <div className="top-sticky-bar flex justify-between items-center mb-4 px-0.5 pt-1">
+          {!manage ? (
+            <button onClick={() => navigate('home', null)} className="flex items-center gap-1.5 btn-press text-white bg-white/10 hover:bg-white/15 px-4 py-2.5 rounded-2xl border border-white/15 shadow-sm">
+              <Ic n="chevR" size={18}/><span className="font-black text-xs">חזרה</span>
+            </button>
+          ) : (
+            <span className="text-xs font-black px-4 py-2.5 rounded-2xl bg-blue-500/20 border border-blue-500/40 text-blue-300">מצב עריכת תרגילים</span>
+          )}
+
+          <div className="flex items-center gap-2">
+            {!manage && m.doneSets > 0 && (
+              <button onClick={() => resetWorkoutSets(cat.id)} className="px-3.5 py-2.5 rounded-2xl btn-press bg-white/10 text-gray-200 border border-white/15 text-xs font-black flex items-center gap-1.5 shadow-sm">
+                <Ic n="refresh" size={15}/> <span>איפוס סטים</span>
+              </button>
+            )}
+            {!manage && (
+              <button onClick={enterManage} className="px-4 py-2.5 rounded-2xl btn-press bg-white/10 text-white border border-white/15 font-black text-xs flex items-center gap-1.5 shadow-sm">
+                <Ic n="edit" size={16}/> <span>עריכה</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="bento-card p-5 mb-4 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-1.5 h-full" style={{backgroundColor: cat.hex}}/>
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-3xl font-black text-white">{cat.name}</h2>
+              <p className="text-xs text-gray-400 font-bold mt-1">
+                {(cat.exercises || []).length} תרגילים • {m.doneSets}/{m.totalSets} סטים הושלמו
+              </p>
+            </div>
+            <div className="text-left">
+              <span className="text-2xl font-black" style={{color: cat.hex}}>{m.pct}%</span>
+              <span className="block text-[10px] text-gray-400 font-bold">התקדמות</span>
+            </div>
+          </div>
+          <div className="h-2 bg-black/40 rounded-full mt-3.5 overflow-hidden">
+            <div className="h-full transition-all duration-500 rounded-full" style={{width: `${m.pct}%`, backgroundColor: cat.hex}}/>
+          </div>
+        </div>
+
+        <div className="space-y-3.5">
+          {(cat.exercises || []).map((ex, idx) => {
+            const numSets = parseInt(ex.sets) || 0;
+            const est1RM = calc1RM(ex.weight, ex.reps);
+            const details = [...(ex.setDetails || [])];
+            while (details.length < numSets) {
+              details.push({ reps: ex.reps || 10, weight: ex.weight || '', type: 'N', done: false });
+            }
+            const visibleDetails = details.slice(0, numSets);
+            const allSetsDone = numSets > 0 && visibleDetails.every(s => s.done);
+
+            return (
+              <div key={ex.id} className="flex gap-2 items-stretch">
+                {manage && (
+                  <div className="flex flex-col gap-1 justify-center">
+                    <button onClick={() => moveEx(idx, -1)} className="p-2.5 rounded-xl btn-press bg-white/10 text-gray-200"><Ic n="arrowUp" size={15}/></button>
+                    <button onClick={() => moveEx(idx, 1)} className="p-2.5 rounded-xl btn-press bg-white/10 text-gray-200"><Ic n="arrowDown" size={15}/></button>
+                  </div>
+                )}
+
+                <div className={`flex-1 p-4 rounded-2xl relative overflow-hidden transition-all cursor-pointer ${manage ? 'bg-blue-500/10 border border-blue-500/30' : allSetsDone ? 'bento-card border-emerald-500/40' : 'bento-card'}`}
+                     onClick={() => setEditEx(ex)}>
+                  <div className="absolute top-0 right-0 w-1.5 h-full" style={{ backgroundColor: allSetsDone ? '#10b981' : cat.hex }}/>
+                  
+                  <div className="pr-2.5">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-black px-2 py-0.5 rounded-lg bg-white/10 text-gray-300">#{idx + 1}</span>
+                          <h4 className="font-black text-base text-white">{ex.name}</h4>
+                        </div>
+                        {ex.notes && <p className="text-xs text-gray-300 mt-1.5 bg-black/35 px-2.5 py-1 rounded-xl inline-block border border-white/5">💡 {ex.notes}</p>}
+                      </div>
+
+                      {manage ? (
+                        <div className="flex gap-1.5">
+                          <button onClick={(e) => { e.stopPropagation(); copyExercise(ex); }} className="p-2.5 rounded-xl btn-press bg-white/10 text-gray-200"><Ic n="copy" size={16}/></button>
+                          <button onClick={(e) => { e.stopPropagation(); delEx(ex.id); }} className="p-2.5 rounded-xl btn-press bg-rose-500/15 text-rose-400 border border-rose-500/25"><Ic n="trash" size={16}/></button>
+                        </div>
+                      ) : (
+                        est1RM > 0 && (
+                          <span className="text-[10px] font-bold px-2 py-1 rounded-xl bg-white/5 text-gray-400 whitespace-nowrap">
+                            1RM ~{est1RM}
+                          </span>
+                        )
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 mt-3 p-2.5 rounded-2xl bg-black/30 border border-white/5 text-center">
+                      <div>
+                        <span className="block text-[10px] text-gray-400 font-bold">סטים</span>
+                        <span className="font-black text-sm text-white">{ex.sets}</span>
+                      </div>
+                      <div className="border-x border-white/5">
+                        <span className="block text-[10px] text-gray-400 font-bold">חזרות</span>
+                        <span className="font-black text-sm text-white">{ex.reps}</span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] text-gray-400 font-bold">משקל ק"ג</span>
+                        <span className="font-black text-sm" style={{color: cat.hex}}>{ex.weight}</span>
+                      </div>
+                    </div>
+
+                    {!manage && prefs.setTable && prefs.quickSets && visibleDetails.length > 0 && (
+                      <div className="mt-3 pt-2.5 border-t border-white/5 flex items-center gap-2 flex-wrap" onClick={e => e.stopPropagation()}>
+                        {visibleDetails.map((sd, sIdx) => (
+                          <button key={sIdx} type="button" onClick={() => toggleQuickSet(ex.id, sIdx)}
+                            className={`flex-1 min-w-[70px] py-2 px-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 btn-press border transition-all ${
+                              sd.done
+                                ? 'bg-emerald-600/30 border-emerald-500/60 text-emerald-300 shadow-sm'
+                                : 'bg-white/[0.04] border-white/10 text-gray-300'
+                            }`}>
+                            <span>סט {sIdx + 1}: {sd.reps || ex.reps}</span>
+                            {sd.done && <Ic n="check" size={13}/>}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          
+          {manage && (
+            <div className="flex gap-2.5 mt-4">
+              <button onClick={addEx} className="flex-1 p-4 rounded-2xl font-bold flex items-center justify-center gap-2 btn-press border-2 border-dashed border-white/20 text-gray-200">
+                <Ic n="plus" size={20}/> הוסף תרגיל
+              </button>
+              {copiedEx && (
+                <button onClick={pasteExercise} className="flex-1 p-4 rounded-2xl font-bold flex items-center justify-center gap-2 btn-press border-2 border-dashed border-blue-500/40 text-blue-400 bg-blue-500/5">
+                  <Ic n="paste" size={20}/> הדבק ({copiedEx.name})
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {!manage && (
+          <div className="mt-6 p-5 bento-card-elevated border-t-4" style={{borderTopColor: cat.hex}}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-black text-sm text-white flex items-center gap-2">
+                <Ic n="activity" size={18} style={{color: cat.hex}}/> סיכום נתוני אימון
+              </h3>
+              <span className="text-xs font-bold text-gray-400">{cat.name}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2.5 text-center mb-4">
+              <div className="p-3 rounded-2xl bg-black/30 border border-white/5">
+                <span className="block text-[10px] text-gray-400 font-bold">תרגילים</span>
+                <span className="text-lg font-black text-white">{(cat.exercises || []).length}</span>
+              </div>
+              <div className="p-3 rounded-2xl bg-black/30 border border-white/5">
+                <span className="block text-[10px] text-gray-400 font-bold">סטים שבוצעו</span>
+                <span className="text-lg font-black text-emerald-400">{m.doneSets}/{m.totalSets}</span>
+              </div>
+              <div className="p-3 rounded-2xl bg-black/30 border border-white/5">
+                <span className="block text-[10px] text-gray-400 font-bold">נפח כולל</span>
+                <span className="text-lg font-black" style={{color: cat.hex}}>{m.totalVol.toLocaleString()} <small className="text-[10px]">ק"ג</small></span>
+              </div>
+            </div>
+
+            <button onClick={() => updateHist(todayKey, isMarkedDoneToday ? null : 'done', cat.id)}
+              className={`w-full py-3.5 rounded-2xl font-black text-sm flex items-center justify-center gap-2 btn-press transition-all ${
+                isMarkedDoneToday
+                  ? 'bg-emerald-600 text-white shadow-lg'
+                  : 'bg-white/10 text-white border border-white/15'
+              }`}>
+              <Ic n="check" size={18}/>
+              <span>{isMarkedDoneToday ? 'האימון סומן כבוצע היום ביומן ✓' : 'סמן אימון זה כבוצע היום ביומן'}</span>
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderStats = () => {
+    const maxW = Math.max(...stats.weeks, 1);
+    const catBreak = {};
+    Object.values(hist).filter(r => r?.status === 'done').forEach(r => { catBreak[r.type] = (catBreak[r.type] || 0) + 1; });
+    const rate = stats.monthDone + stats.monthMissed > 0 ? Math.round((stats.monthDone / (stats.monthDone + stats.monthMissed)) * 100) : 0;
+    
+    return (
+      <div className="px-4 pb-32 safe-top space-y-4" dir="rtl">
+        <div className="px-1">
+          <span className="text-xs font-bold text-gray-400">ניתוח ביצועים</span>
+          <h2 className="text-2xl font-black text-white">סטטיסטיקה ומדדים</h2>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { ico: 'trophy', val: stats.totalDone, label: 'סך הכל אימונים', sub: 'הושלמו בהצלחה', col: '#f59e0b' },
+            { ico: 'flame', val: stats.streak, label: 'רצף נוכחי', sub: 'ימים פעילים', col: '#f97316' },
+            { ico: 'target', val: `${rate}%`, label: 'אחוז התמדה', sub: 'מתוך ימים שדווחו החודש', col: '#3b82f6' },
+            { ico: 'check', val: stats.monthDone, label: 'בוצעו החודש', sub: 'אימונים בחודש הנוכחי', col: '#10b981' },
+          ].map(({ ico, val, label, sub, col }) => (
+            <div key={label} className="bento-card p-4 flex flex-col justify-between">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-2xl font-black text-white">{val}</span>
+                <div className="p-2 rounded-xl bg-white/5" style={{color: col}}><Ic n={ico} size={20}/></div>
+              </div>
+              <div>
+                <div className="text-xs font-black text-gray-200">{label}</div>
+                <div className="text-[10px] text-gray-400">{sub}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="bento-card p-5">
+          <h3 className="font-black text-sm mb-4 text-white">קצב אימונים (8 שבועות אחרונים)</h3>
+          <div className="flex items-end gap-2 h-28 pt-4">
+            {stats.weeks.map((cnt, i) => (
+              <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
+                <span className="text-[11px] font-black text-gray-300">{cnt > 0 ? cnt : ''}</span>
+                <div className="w-full rounded-t-lg transition-all duration-700" style={{
+                  height: `${Math.max((cnt / maxW) * 76, cnt > 0 ? 10 : 4)}px`,
+                  background: cnt > 0 ? 'linear-gradient(180deg, var(--primary-2), var(--primary))' : 'rgba(255,255,255,0.06)'
+                }}/>
+                <span className="text-[9px] text-gray-400 font-bold">{i === 7 ? 'השבוע' : `ש' ${8-i}`}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bento-card p-5">
+          <h3 className="font-black text-sm mb-4 text-white">התפלגות לפי תוכנית אימון</h3>
+          <div className="space-y-3.5">
+            {cats.map(cat => {
+              const cnt = catBreak[cat.id] || 0;
+              const pct = stats.totalDone > 0 ? (cnt / stats.totalDone) * 100 : 0;
+              return (
+                <div key={cat.id}>
+                  <div className="flex justify-between text-xs mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cat.hex }}/>
+                      <span className="font-bold text-white">{cat.name}</span>
+                    </div>
+                    <span className="font-bold text-gray-400">{cnt} ({Math.round(pct)}%)</span>
+                  </div>
+                  <div className="h-2 rounded-full overflow-hidden bg-black/40">
+                    <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, backgroundColor: cat.hex }}/>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {prefs.bodyMetrics && (
+          <div className="bento-card p-5">
+            <h3 className="font-black text-sm mb-3 text-white">מעקב משקל גוף (ק"ג)</h3>
+            <div className="flex gap-2 mb-4">
+              <input type="number" step="0.1" placeholder="הזן משקל עדכני..." value={newWeightInput} onChange={e => setNewWeightInput(e.target.value)}
+                className="flex-1 p-3 rounded-xl styled-input text-sm font-bold" />
+              <button onClick={addBodyWeight} className="px-5 rounded-xl font-black text-white text-sm btn-press" style={{background: 'var(--primary)'}}>
+                שמור
+              </button>
+            </div>
+            {bodyLogs.length > 0 ? (
+              <div className="space-y-2 max-h-40 overflow-y-auto no-scroll">
+                {bodyLogs.slice().reverse().slice(0, 8).map((item) => (
+                  <div key={item.date} className="flex justify-between items-center p-2.5 rounded-xl bg-black/30 border border-white/5 text-xs">
+                    <span className="text-gray-400 font-bold">{item.date}</span>
+                    <span className="font-black text-white text-sm">{item.weight} ק"ג</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500 text-center py-2">טרם הוזנו שקילות. הזן משקל גוף למעקב מגמה.</p>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderSettings = () => (
+    <div className="px-4 pb-32 safe-top space-y-4" dir="rtl">
+      <div className="px-1">
+        <span className="text-xs font-bold text-gray-400">ניהול והתאמה אישית</span>
+        <h2 className="text-2xl font-black text-white">הגדרות מערכת</h2>
+      </div>
+
+      <div className="bento-card p-4 border-r-4" style={{borderRightColor: '#10b981'}}>
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-2xl bg-emerald-500/15 text-emerald-400">
+            <Ic n="shieldCheck" size={24}/>
+          </div>
+          <div className="flex-1">
+            <div className="text-sm font-black text-white">עבודה ללא אינטרנט (Offline Pro)</div>
+            <div className="text-xs text-gray-400 mt-0.5">
+              הנתונים והמערכת נשמרים אוטומטית על המכשיר לעבודה מלאה גם במצב טיסה.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bento-card p-5">
+        <h3 className="font-black text-sm mb-3 text-white flex items-center gap-2">
+          <Ic n="sparkles" size={18} style={{color: 'var(--primary-2)'}}/> סגנון כרטיסים בועתי
+        </h3>
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { id: 'bubble', name: 'בועות 3D' },
+            { id: 'glass', name: 'זכוכית חלקה' },
+            { id: 'neon', name: 'ניאון זוהר' }
+          ].map(st => (
+            <button key={st.id} onClick={() => setPrefs({...prefs, cardStyle: st.id})}
+              className={`p-3 rounded-2xl font-black text-xs btn-press border transition-all ${(prefs.cardStyle || 'bubble') === st.id ? 'bg-white/15 border-white text-white' : 'bg-black/25 border-white/5 text-gray-400'}`}>
+              {st.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="bento-card p-5">
+        <h3 className="font-black text-sm mb-3 text-white flex items-center gap-2">
+          <Ic n="palette" size={18} style={{color: 'var(--primary-2)'}}/> ערכת נושא וצבעים
+        </h3>
+        <div className="grid grid-cols-2 gap-2.5">
+          {[
+            { id: 'default', name: 'סייבר בלו (כחול)', col: '#3b82f6' },
+            { id: 'emerald', name: 'אמרלד (ירוק)', col: '#10b981' },
+            { id: 'ocean', name: 'אוקיינוס (תכלת)', col: '#06b6d4' },
+            { id: 'cherry', name: 'קרימזון (אדום)', col: '#f43f5e' },
+            { id: 'sunset', name: 'שקיעה (זהב)', col: '#f59e0b' },
+            { id: 'amethyst', name: 'אמטיסט (סגול)', col: '#a855f7' },
+            { id: 'titanium', name: 'טיטניום (כסוף)', col: '#94a3b8' },
+            { id: 'lava', name: 'לבה (כתום אש)', col: '#f97316' },
+          ].map(t => (
+            <button key={t.id} onClick={() => setTheme(t.id)} 
+              className={`p-3 rounded-2xl text-right font-bold text-xs btn-press flex items-center gap-2.5 border transition-all ${theme === t.id ? 'bg-white/10 border-white text-white' : 'bg-black/25 border-white/5 text-gray-400'}`}>
+              <span className="w-4 h-4 rounded-full flex-shrink-0" style={{backgroundColor: t.col}}/>
+              <span className="truncate">{t.name}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="bento-card p-5 space-y-2.5">
+        <h3 className="font-black text-sm mb-3 text-white">רכיבי תצוגה ומעקב</h3>
+        <Toggle label="טיימר מנוחה צף" sub="כפתור טיימר מהיר בכל המסכים" icon="clock" checked={prefs.timer} onChange={v => setPrefs({...prefs, timer: v})} />
+        <Toggle label="סרגל יומן ולוח שנה" sub="מעקב שבועי וחודשי במסך הראשי" icon="calendar" checked={prefs.calendar} onChange={v => setPrefs({...prefs, calendar: v})} />
+        <Toggle label="סימון סטים מהיר בכרטיס" sub="כפתורי סטים לחיצים ישירות בדף האימון" icon="check" checked={prefs.quickSets} onChange={v => setPrefs({...prefs, quickSets: v})} />
+        <Toggle label="טבלת סטים מפורטת בעריכה" sub="משקל, חזרות וסוג סט לכל סט בנפרד" icon="edit" checked={prefs.setTable} onChange={v => setPrefs({...prefs, setTable: v})} />
+        <Toggle label="מעקב מים ותוספים יומי" sub="ווידג'ט כוסות מים, קריאטין וחלבון במסך הבית" icon="droplet" checked={prefs.dailyHabits} onChange={v => setPrefs({...prefs, dailyHabits: v})} />
+        <Toggle label="עמוד סטטיסטיקה ומדדים" sub="גרפים ומעקב משקל גוף" icon="barChart" checked={prefs.stats} onChange={v => setPrefs({...prefs, stats: v})} />
+      </div>
+
+      <div className="bento-card p-5">
+        <h3 className="font-black text-sm mb-3 text-white">שיבוץ אימונים שבועי קבוע</h3>
+        <div className="space-y-2">
+          {[0, 1, 2, 3, 4, 5, 6].map(di => {
+            const pid = sched[di];
+            const c = cats.find(x => x.id === pid);
+            return (
+              <div key={di} className="flex items-center gap-3 p-2.5 rounded-xl bg-black/25 border border-white/5">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black bg-white/5 text-gray-300">{DAY_LET[di]}</div>
+                <span className="text-xs font-bold w-12 text-gray-300">{DAY_NAMES[di]}</span>
+                <select className="flex-1 p-2 rounded-lg text-xs font-bold styled-input bg-transparent border-none" dir="rtl"
+                  value={pid || ''} onChange={e => setSched(prev => ({ ...prev, [di]: e.target.value || null }))}>
+                  <option value="" className="text-black">☕ יום מנוחה</option>
+                  {cats.map(cat => <option key={cat.id} value={cat.id} className="text-black">{cat.name}</option>)}
+                </select>
+                {c && <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: c.hex }}/>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="bento-card p-5 space-y-2.5">
+        <h3 className="font-black text-sm mb-2 text-white">גיבוי נתונים ועדכון</h3>
+        <div className="grid grid-cols-2 gap-2.5">
+          <button onClick={exportData} className="p-3.5 rounded-2xl font-black text-xs flex items-center justify-center gap-2 btn-press bg-blue-500/15 border border-blue-500/30 text-blue-300">
+            <Ic n="download" size={16}/> ייצוא גיבוי
+          </button>
+          <button onClick={() => fileRef.current?.click()} className="p-3.5 rounded-2xl font-black text-xs flex items-center justify-center gap-2 btn-press bg-emerald-500/15 border border-emerald-500/30 text-emerald-300">
+            <Ic n="upload" size={16}/> שחזור מגיבוי
+          </button>
+          <input ref={fileRef} type="file" accept=".json" className="hidden" onChange={importData}/>
+        </div>
+        <button onClick={forceServerRefresh} className="w-full p-3.5 rounded-2xl font-black text-xs flex items-center justify-center gap-2 btn-press bg-white/10 border border-white/15 text-white mt-2">
+          <Ic n="refresh" size={16}/> כפה רענון ומחיקת מטמון (Cache)
+        </button>
+      </div>
+    </div>
+  );
+
+  const NAV = [
+    { id: 'home', n: 'home', label: 'אימונים' },
+    ...(prefs.stats ? [{ id: 'stats', n: 'barChart', label: 'מדדים' }] : []),
+    { id: 'settings', n: 'settings', label: 'הגדרות' },
+  ];
+
+  return (
+    <div className="min-h-screen relative">
+      <main className="relative z-10 max-w-lg mx-auto min-h-screen">
+        <div key={`${page}_${workout || 'main'}`} className="fade-in">
+          {workout ? renderWorkoutDetail() : page === 'home' ? renderHome() : page === 'stats' ? renderStats() : renderSettings()}
+        </div>
+      </main>
+
+      <TimerWidget prefs={prefs} manageMode={manage} />
+
+      {!manage && (
+        <div className="fixed bottom-4 left-0 w-full z-40 px-6 pointer-events-none" dir="rtl">
+          <nav className="max-w-xs mx-auto glass-dock rounded-3xl p-1.5 flex items-center justify-around pointer-events-auto">
+            {NAV.map(item => {
+              const active = page === item.id && !workout;
+              return (
+                <button key={item.id} onClick={() => { navigate(item.id); if (manage) cancelManage(); }}
+                  className={`flex-1 py-2.5 px-3 rounded-2xl flex items-center justify-center gap-2 transition-all btn-press ${active ? 'bg-white/15 shadow-inner' : ''}`}
+                  style={{ color: active ? 'var(--primary-2)' : 'var(--muted)' }}>
+                  <Ic n={item.n} size={20}/>
+                  {active && <span className="text-xs font-black text-white">{item.label}</span>}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+      )}
+
+      {manage && (
+        <div className="fixed bottom-0 left-0 w-full p-4 z-[150] flex gap-3 glass-dock" dir="rtl">
+          <button onClick={saveManage} className="flex-1 p-4 rounded-2xl font-black flex items-center justify-center gap-2 btn-press text-white shadow-lg" style={{background: 'var(--primary)'}}>
+            <Ic n="check" size={20}/> שמור שינויים
+          </button>
+          <button onClick={cancelManage} className="flex-1 p-4 rounded-2xl font-black flex items-center justify-center gap-2 btn-press bg-white/10 text-gray-200">
+            <Ic n="x" size={20}/> ביטול
+          </button>
+        </div>
+      )}
+
+      {editEx && <ExerciseEditModal exercise={editEx} catHex={dispCats.find(c => c.id === workout)?.hex} onSave={saveEx} onClose={() => setEditEx(null)} prefs={prefs} />}
+      {editCatModal && (
+        <CategoryEditModal
+          category={editCatModal.data}
+          onClose={() => setEditCatModal(null)}
+          onSave={(upd) => {
+            const a = [...draftCats];
+            a[editCatModal.index] = upd;
+            setDraftCats(a);
+            setEditCatModal(null);
+          }}
+        />
+      )}
+      {selDate && <DayInfoModal dateInfo={selDate} onClose={() => setSelDate(null)} history={hist} categories={cats} schedule={sched} onUpdateStatus={updateHist} />}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').then(reg => {
+      reg.update();
+    }).catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
